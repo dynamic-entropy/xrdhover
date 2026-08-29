@@ -1,7 +1,7 @@
-#include "readgen/workload_spec.hh"
+#include "xrdhover/workload_spec.hh"
 
-#include "readgen/site_map.hh"
-#include "readgen/units.hh"
+#include "xrdhover/site_map.hh"
+#include "xrdhover/units.hh"
 
 #include <openssl/evp.h>
 
@@ -10,7 +10,7 @@
 #include <set>
 #include <stdexcept>
 
-namespace readgen {
+namespace xrdhover {
 namespace {
 
 namespace fs = std::filesystem;
@@ -579,4 +579,4 @@ RunConfig ToRunConfig(const WorkloadSpec& wl, const TargetSpec& target) {
     return cfg;
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

@@ -1,4 +1,4 @@
-#include "readgen/report_command.hh"
+#include "xrdhover/report_command.hh"
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
@@ -10,10 +10,9 @@
 #include <unistd.h>
 
 using json = nlohmann::json;
-using readgen::AggregateResultFiles;
-using readgen::DiscoverResultFiles;
-using readgen::ReportOptions;
-using readgen::RunReportCommand;
+using xrdhover::DiscoverResultFiles;
+using xrdhover::ReportOptions;
+using xrdhover::RunReportCommand;
 namespace fs = std::filesystem;
 
 namespace {
@@ -59,7 +58,7 @@ void WriteResult(const fs::path& path, const json& j) {
 class ReportCommandTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        dir_ = fs::temp_directory_path() / ("readgen_report_" + std::to_string(::getpid()));
+        dir_ = fs::temp_directory_path() / ("xrdhover_report_" + std::to_string(::getpid()));
         fs::remove_all(dir_);
         fs::create_directories(dir_);
     }
@@ -90,68 +89,16 @@ TEST_F(ReportCommandTest, DiscoversResultJsonFile) {
     EXPECT_EQ(files[0], result.string());
 }
 
-TEST_F(ReportCommandTest, DiscoversFleetViaResultsDir) {
-    WriteResult(dir_ / "i1" / "global" / "result.json",
-                MakeResult("global", "host-i1", 1000, 1, 0, 8.0, "SITE_A", "ds1:1094"));
-    WriteResult(dir_ / "i2" / "global" / "result.json",
-                MakeResult("global", "host-i2", 3000, 3, 1, 12.0, "SITE_B", "ds2:1094"));
-
-    ReportOptions opts;
-    opts.results_dir = dir_.string();
-    opts.run_id = "global";
-    const auto files = DiscoverResultFiles(opts);
-    ASSERT_EQ(files.size(), 2u);
-    EXPECT_EQ(files[0], (dir_ / "i1" / "global" / "result.json").string());
-    EXPECT_EQ(files[1], (dir_ / "i2" / "global" / "result.json").string());
-}
-
-TEST_F(ReportCommandTest, FleetFlagIgnoresSingleLayout) {
-    WriteResult(dir_ / "global" / "result.json",
-                MakeResult("global", "host-a", 1000, 1, 0, 5.0, "SITE_A", "ds1:1094"));
-    WriteResult(dir_ / "i1" / "global" / "result.json",
-                MakeResult("global", "host-i1", 2000, 2, 0, 6.0, "SITE_A", "ds1:1094"));
-
-    ReportOptions opts;
-    opts.results_dir = dir_.string();
-    opts.run_id = "global";
-    opts.fleet = true;
-    const auto files = DiscoverResultFiles(opts);
-    ASSERT_EQ(files.size(), 1u);
-    EXPECT_EQ(files[0], (dir_ / "i1" / "global" / "result.json").string());
-}
-
-TEST_F(ReportCommandTest, PrefersSingleOverFleetWhenBothExist) {
-    WriteResult(dir_ / "global" / "result.json",
-                MakeResult("global", "host-a", 1000, 1, 0, 5.0, "SITE_A", "ds1:1094"));
-    WriteResult(dir_ / "i1" / "global" / "result.json",
-                MakeResult("global", "host-i1", 2000, 2, 0, 6.0, "SITE_A", "ds1:1094"));
+TEST_F(ReportCommandTest, DiscoversViaResultsDirAndRunId) {
+    const auto result = dir_ / "global" / "result.json";
+    WriteResult(result, MakeResult("global", "host-a", 1000, 2, 0, 10.0, "SITE_A", "ds1:1094"));
 
     ReportOptions opts;
     opts.results_dir = dir_.string();
     opts.run_id = "global";
     const auto files = DiscoverResultFiles(opts);
     ASSERT_EQ(files.size(), 1u);
-    EXPECT_EQ(files[0], (dir_ / "global" / "result.json").string());
-}
-
-TEST_F(ReportCommandTest, AggregatesFleetBytesAndSites) {
-    const auto p1 = dir_ / "i1" / "global" / "result.json";
-    const auto p2 = dir_ / "i2" / "global" / "result.json";
-    WriteResult(p1, MakeResult("global", "host-i1", 1000, 1, 0, 8.0, "SITE_A", "ds1:1094"));
-    WriteResult(p2, MakeResult("global", "host-i2", 3000, 3, 1, 12.0, "SITE_A", "ds1:1094"));
-
-    const auto summary = AggregateResultFiles({p1.string(), p2.string()});
-    EXPECT_TRUE(summary.fleet);
-    EXPECT_EQ(summary.run_id, "global");
-    EXPECT_EQ(summary.bytes_read, 4000u);
-    EXPECT_EQ(summary.sessions_ok, 4u);
-    EXPECT_EQ(summary.sessions_fail, 1u);
-    EXPECT_DOUBLE_EQ(summary.elapsed_s, 12.0);
-    ASSERT_EQ(summary.by_cms_site.count("SITE_A"), 1u);
-    EXPECT_EQ(summary.by_cms_site.at("SITE_A").bytes_read, 4000u);
-    ASSERT_EQ(summary.by_data_server.count("ds1:1094"), 1u);
-    EXPECT_EQ(summary.by_data_server.at("ds1:1094").sessions_ok, 4u);
-    EXPECT_EQ(summary.job_ids.size(), 2u);
+    EXPECT_EQ(files[0], result.string());
 }
 
 TEST_F(ReportCommandTest, RunReportJsonExit0) {

@@ -21,10 +21,10 @@ have_cmd() { command -v "$1" >/dev/null 2>&1; }
 echo "==> checking build prerequisites"
 
 [[ -f Containerfile ]] || add_missing "Containerfile" "run from the repo root (missing ./Containerfile)"
-[[ -d packaging/share/xrd-readgen ]] || add_missing "packaging/share/xrd-readgen" \
+[[ -d packaging/share/xrdhover ]] || add_missing "packaging/share/xrdhover" \
   "restore packaging/share examples used in the release tarball"
 [[ -f scripts/install.sh ]] || add_missing "scripts/install.sh" "restore the install script"
-[[ -f CMakeLists.txt ]] || add_missing "CMakeLists.txt" "run from the xrd-readgen repo root"
+[[ -f CMakeLists.txt ]] || add_missing "CMakeLists.txt" "run from the xrdhover repo root"
 
 ENGINE=""
 if have_cmd podman; then
@@ -56,7 +56,7 @@ fi
 
 VERSION="${VERSION:-}"
 if [[ -z "$VERSION" ]]; then
-  VERSION="$(sed -n 's/^[[:space:]]*set(READGEN_VERSION[[:space:]]*"\([0-9.]*\)").*/\1/p' CMakeLists.txt | head -1)"
+  VERSION="$(sed -n 's/^[[:space:]]*set(XRDHOVER_VERSION[[:space:]]*"\([0-9.]*\)").*/\1/p' CMakeLists.txt | head -1)"
 fi
 if [[ -z "$VERSION" ]]; then
   echo "error: could not determine VERSION from CMakeLists.txt" >&2
@@ -65,10 +65,10 @@ if [[ -z "$VERSION" ]]; then
 fi
 
 ARCH="${ARCH:-linux-amd64}"
-IMAGE_TAG="${IMAGE_TAG:-xrd-readgen-build:${VERSION}}"
+IMAGE_TAG="${IMAGE_TAG:-xrdhover-build:${VERSION}}"
 DIST_DIR="${DIST_DIR:-${ROOT}/dist}"
-STAGE="${DIST_DIR}/stage/xrd-readgen-${VERSION}-${ARCH}"
-TARBALL="${DIST_DIR}/xrd-readgen-${VERSION}-${ARCH}.tar.gz"
+STAGE="${DIST_DIR}/stage/xrdhover-${VERSION}-${ARCH}"
+TARBALL="${DIST_DIR}/xrdhover-${VERSION}-${ARCH}.tar.gz"
 
 echo "  ok: engine=${ENGINE}, version=${VERSION}, arch=${ARCH}"
 if [[ "$(uname -m)" != "x86_64" && "$(uname -m)" != "amd64" ]]; then
@@ -95,24 +95,22 @@ mkdir -p "${STAGE}/bin" "${STAGE}/share"
 cid="$("$ENGINE" create --platform=linux/amd64 "$IMAGE_TAG")"
 cleanup() { "$ENGINE" rm -f "$cid" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
-"$ENGINE" cp "${cid}:/out/xrd-readgen" "${STAGE}/bin/xrd-readgen"
-chmod 0755 "${STAGE}/bin/xrd-readgen"
+"$ENGINE" cp "${cid}:/out/xrdhover" "${STAGE}/bin/xrdhover"
+chmod 0755 "${STAGE}/bin/xrdhover"
 # Version match is checked inside the Containerfile build (linux/amd64); do not
 # re-exec the staged binary here — hosts may be a different arch (e.g. aarch64).
-install -m 0755 "${ROOT}/scripts/multi_run.py" "${STAGE}/bin/multi_run.py"
-install -m 0755 "${ROOT}/scripts/capacity_sweep.py" "${STAGE}/bin/capacity_sweep.py"
-cp -a packaging/share/xrd-readgen "${STAGE}/share/"
+cp -a packaging/share/xrdhover "${STAGE}/share/"
 
 echo "==> packing ${TARBALL}"
 mkdir -p "$DIST_DIR"
-tar -C "${DIST_DIR}/stage" -czf "$TARBALL" "xrd-readgen-${VERSION}-${ARCH}"
+tar -C "${DIST_DIR}/stage" -czf "$TARBALL" "xrdhover-${VERSION}-${ARCH}"
 
 (
   cd "$DIST_DIR"
   if have_cmd sha256sum; then
-    sha256sum "xrd-readgen-${VERSION}-${ARCH}.tar.gz" > SHA256SUMS
+    sha256sum "xrdhover-${VERSION}-${ARCH}.tar.gz" > SHA256SUMS
   else
-    shasum -a 256 "xrd-readgen-${VERSION}-${ARCH}.tar.gz" > SHA256SUMS
+    shasum -a 256 "xrdhover-${VERSION}-${ARCH}.tar.gz" > SHA256SUMS
   fi
 )
 

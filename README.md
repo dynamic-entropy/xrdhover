@@ -1,74 +1,104 @@
-# xrd-readgen
+# xrdhover
 
-XRootD (`root://`) remote-read traffic generator for CMS / WLCG data challenges.
+XRootD (`root://`) held-rate reader for CMS / WLCG data challenges.
+Formerly **xrd-readgen**.
 
-Generates controlled, measured remote-read load against XRootD endpoints (AAA
-federation redirectors or individual servers).
+This is the **inner hold process** for [tckestrel](https://github.com/dynamic-entropy/tckestrel):
+one process per Condor job, token-bucket capped, metrics on a Pushgateway.
+tckestrel owns Condor, Rucio, filelists, and the outer fleet loop.
 
-Client-side metrics (open latency, TTFB, per-op latency, redirect depth, error classes)
-are pushed to a Prometheus Pushgateway and/or written as result files.
+All traffic is tagged `XRD_APPNAME=xrdhover/<version>` so server-side
+monitoring (MONIT) can identify it.
 
-## Install (linux/amd64 VM)
+## Install (linux/amd64)
 
-From [GitHub Releases](https://github.com/dynamic-entropy/xrd-readgen/releases)
+From [GitHub Releases](https://github.com/dynamic-entropy/xrdhover/releases)
 (requires `xrootd-client` on the host):
 
 ```sh
-curl -fsSL https://github.com/dynamic-entropy/xrd-readgen/releases/latest/download/install.sh | sudo bash
+curl -fsSL https://github.com/dynamic-entropy/xrdhover/releases/latest/download/install.sh | sudo bash
+xrdhover version
 ```
 
 | Path | Role |
 |---|---|
-| `/usr/local/bin/xrd-readgen` | binary |
-| `/etc/xrd-readgen/` | config (`workloads/`, `filelists/`) |
-| `/var/lib/xrd-readgen/results` | FileSink output |
+| `/usr/local/bin/xrdhover` | binary |
+| `/etc/xrdhover/` | example workloads and filelists |
+| `/var/lib/xrdhover/results` | FileSink output |
 
-Sanitized placeholder examples are seeded into `/etc/xrd-readgen` on first install.
-Replace or add site workloads/filelists there under normal names (e.g.
-`/etc/xrd-readgen/workloads/aaa-global.json`).
+## Condor / tckestrel
 
-```sh
-xrd-readgen validate /etc/xrd-readgen/workloads/example.json
-xrd-readgen run /etc/xrd-readgen/workloads/aaa-global.json
+tckestrel fetches the release binary (`<version>/<arch>/xrdhover`) and submits
+it as the job executable (not CVMFS):
+
+```text
+executable           = xrdhover
+transfer_executable  = true
+arguments            = run job.json
+transfer_input_files = job.json, files.txt
 ```
 
-Build a release tarball locally (Podman/Docker, `--platform=linux/amd64`):
+Preflight on the schedd (no XRootD I/O):
 
 ```sh
-./scripts/build-release.sh   # → dist/xrd-readgen-*-linux-amd64.tar.gz
+xrdhover validate job.json
 ```
 
-Tagging `v*` on GitHub runs [`.github/workflows/release.yml`](.github/workflows/release.yml)
-and publishes the tarball + `install.sh`.
+Field mapping, `run_id` / `job_id` rules, and `max_bytes` policy live in
+[tckestrel/docs/xrdhover.md](https://github.com/dynamic-entropy/tckestrel/blob/master/docs/xrdhover.md).
+Schema is `schema_version: 1`. Do not use `pattern.max_bytes: "auto"` for
+PREMIX — auto caps a session at 32 MB.
 
-## Build from source
+A grid-shaped example is [workloads/job.json](workloads/job.json).
 
-Requires CMake >= 3.24, a C++17 compiler, and XRootD client libraries
-(`brew install xrootd` / EPEL `xrootd-client-devel`, or point `-DXRootD_DIR`
-at a local build tree).
-
-```sh
-cmake -S . -B build
-cmake --build build -j
-```
-
-## Quick start
+## Local run
 
 ```sh
 # terminal 1: throwaway local server (creates a 256 MiB test file)
 dev/local-server.sh
 
-# terminal 2: timed remote read
-build/xrd-readgen read root://localhost:10945//tmp/xrd-readgen-data/test-256M.bin
-build/xrd-readgen read --vector 16 --chunk-size 131072 root://localhost:10945//tmp/xrd-readgen-data/test-256M.bin
+# terminal 2
+cmake -S . -B build && cmake --build build -j
+build/xrdhover read root://localhost:10945//tmp/xrdhover-data/test-256M.bin
+build/xrdhover run --endpoint root://localhost:10945/ \
+  --filelist filelists/local.txt --duration 30s --rate 400Mbps \
+  --max-bytes 32MiB
+# or: build/xrdhover run workloads/example.json --skip-auth-check
 ```
 
-Against the grid (x509 proxy):
+tckestrel does not emit a flag line.
+
+## Exit codes
+
+tckestrel treats these as the circuit-breaker contract:
+
+| Code | Meaning |
+|---|---|
+| 0 | OK (or some sessions failed but at least one succeeded) |
+| 1 | All sessions failed |
+| 2 | Auth / config / empty filelist / usage |
+
+Workload `run` checks the x509 proxy: not group/other-writable, remaining TTL
+≥ duration + 300s.
+
+## Metrics
+
+Pushgateway job default is `xrdhover`. Scrape
+`xrdhover_achieved_rate_bytes` (bytes / wall; cumulative). Labels:
+`run_id` (stable per source–dest cell), `job_id` (unique per process).
+The process DELETEs its Pushgateway group on exit unless
+`sinks.pushgateway.keep` is true.
+
+Import [dashboards/xrdhover-d1.json](dashboards/xrdhover-d1.json) into Grafana.
+See [dashboards/README.md](dashboards/README.md).
+
+## Build / test / release
+
+Requires CMake ≥ 3.24, C++17, **XRootD 6** client libraries, libcurl, OpenSSL.
 
 ```sh
-voms-proxy-init -voms cms
-build/xrd-readgen read root://cms-xrd-global.cern.ch//store/<filename_lfn>
+cmake -S . -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+./scripts/build-release.sh   # → dist/xrdhover-*-linux-amd64.tar.gz
 ```
-
-All traffic is tagged `XRD_APPNAME=xrd-readgen/<version>` so server-side
-monitoring (MONIT) can identify and filter it.

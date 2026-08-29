@@ -1,11 +1,11 @@
-#include "readgen/random_io.hh"
+#include "xrdhover/random_io.hh"
 
 #include <gtest/gtest.h>
 
 #include <cstdint>
 #include <set>
 
-using readgen::SampleRandomReadOffset;
+using xrdhover::SampleRandomReadOffset;
 
 TEST(RandomIo, OffsetZeroWhenLenCoversFile) {
     std::mt19937_64 rng(1);

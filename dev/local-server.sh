@@ -10,21 +10,21 @@
 # Positional (legacy): dev/local-server.sh [data_dir] [port]
 set -euo pipefail
 
-DATA_DIR="/tmp/xrd-readgen-data"
+DATA_DIR="/tmp/xrdhover-data"
 PORT="10945"  # 10940 is often a local federation meta-manager
 BACKGROUND=0
 ACTION="start"
-PID_FILE="/tmp/xrd-readgen-xrootd.pid"
-LOG_FILE="/tmp/xrd-readgen-xrootd.log"
+PID_FILE="/tmp/xrdhover-xrootd.pid"
+LOG_FILE="/tmp/xrdhover-xrootd.log"
 
 usage() {
   cat <<'EOF'
 Usage: dev/local-server.sh [options] [data_dir] [port]
 
-  --background, -b   Run xrootd in the background (PID in /tmp/xrd-readgen-xrootd.pid)
+  --background, -b   Run xrootd in the background (PID in /tmp/xrdhover-xrootd.pid)
   --stop             Stop a background server started by this script
   --status           Show whether the background server is running
-  --data-dir DIR     Export directory (default: /tmp/xrd-readgen-data)
+  --data-dir DIR     Export directory (default: /tmp/xrdhover-data)
   --port PORT        Listen port (default: 10945)
   --help, -h         Show this help
 
@@ -48,9 +48,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       # Legacy positionals: first → data_dir, second → port
-      if [[ "$DATA_DIR" == "/tmp/xrd-readgen-data" && "$1" != /* && "$1" =~ ^[0-9]+$ ]]; then
+      if [[ "$DATA_DIR" == "/tmp/xrdhover-data" && "$1" != /* && "$1" =~ ^[0-9]+$ ]]; then
         PORT="$1"
-      elif [[ "$DATA_DIR" == "/tmp/xrd-readgen-data" ]]; then
+      elif [[ "$DATA_DIR" == "/tmp/xrdhover-data" ]]; then
         DATA_DIR="$1"
       else
         PORT="$1"

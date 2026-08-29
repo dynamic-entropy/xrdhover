@@ -1,5 +1,5 @@
-#include "readgen/file_sink.hh"
-#include "readgen/metrics.hh"
+#include "xrdhover/file_sink.hh"
+#include "xrdhover/metrics.hh"
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
@@ -9,17 +9,17 @@
 #include <string>
 #include <unistd.h>
 
-using readgen::FileSink;
-using readgen::Histogram;
-using readgen::MetricsRegistry;
-using readgen::RunInfoMeta;
+using xrdhover::FileSink;
+using xrdhover::Histogram;
+using xrdhover::MetricsRegistry;
+using xrdhover::RunInfoMeta;
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
 class FileSinkTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        dir_ = fs::temp_directory_path() / ("readgen_sink_" + std::to_string(::getpid()));
+        dir_ = fs::temp_directory_path() / ("xrdhover_sink_" + std::to_string(::getpid()));
         fs::remove_all(dir_);
         fs::create_directories(dir_);
     }
@@ -58,12 +58,12 @@ TEST_F(FileSinkTest, WritesJsonlAndResult) {
     ASSERT_TRUE(std::getline(jl, line));
     auto j = json::parse(line);
     EXPECT_EQ(j["run_id"], "t1");
-    EXPECT_EQ(j["readgen_bytes_read_total"], 1024 * 1024);
-    EXPECT_TRUE(j.contains("readgen_process_resident_memory_bytes"));
-    ASSERT_TRUE(j["readgen_open_seconds"].contains("counts"));
-    ASSERT_TRUE(j["readgen_open_seconds"].contains("bounds"));
-    ASSERT_TRUE(j["readgen_open_seconds"].contains("sum"));
-    EXPECT_EQ(j["readgen_open_seconds"]["count"], 1);
+    EXPECT_EQ(j["xrdhover_bytes_read_total"], 1024 * 1024);
+    EXPECT_TRUE(j.contains("xrdhover_process_resident_memory_bytes"));
+    ASSERT_TRUE(j["xrdhover_open_seconds"].contains("counts"));
+    ASSERT_TRUE(j["xrdhover_open_seconds"].contains("bounds"));
+    ASSERT_TRUE(j["xrdhover_open_seconds"].contains("sum"));
+    EXPECT_EQ(j["xrdhover_open_seconds"]["count"], 1);
     ASSERT_TRUE(j.contains("by_data_server"));
     EXPECT_EQ(j["by_data_server"]["localhost:10945"]["bytes_read"], 1024 * 1024);
 
@@ -73,8 +73,8 @@ TEST_F(FileSinkTest, WritesJsonlAndResult) {
     EXPECT_EQ(result["job_id"], "j1");
     EXPECT_EQ(result["bytes_read"], 1024 * 1024);
     EXPECT_TRUE(result["latency"]["open_seconds"].contains("p50"));
-    EXPECT_TRUE(result.contains("readgen_bytes_per_cpu_second"));
-    EXPECT_TRUE(result.contains("readgen_process_resident_memory_bytes"));
+    EXPECT_TRUE(result.contains("xrdhover_bytes_per_cpu_second"));
+    EXPECT_TRUE(result.contains("xrdhover_process_resident_memory_bytes"));
     EXPECT_EQ(result["run_info"]["seed"], 42);
     ASSERT_TRUE(result.contains("by_data_server"));
     EXPECT_EQ(result["by_data_server"]["localhost:10945"]["bytes_read"], 1024 * 1024);

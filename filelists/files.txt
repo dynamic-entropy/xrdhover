@@ -1,0 +1,2 @@
+# Example PFN paths (CERN EOS). Real lists come from tckestrel lfns2pfns.
+/eos/cms/store/mc/RunIISummer20ULPrePremix/Neutrino_E-10_gun/PREMIX/UL16_106X_mcRun2_asymptotic_v13-v1/260025/F545A045-378B-674F-A76F-E5123E93878C.root

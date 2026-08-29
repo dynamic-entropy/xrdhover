@@ -43,6 +43,6 @@ jobs:
           gh release create "v${VERSION}" \
             --title "v${VERSION}" \
             --generate-notes \
-            "dist/xrd-readgen-${VERSION}-linux-amd64.tar.gz" \
+            "dist/xrdhover-${VERSION}-linux-amd64.tar.gz" \
             "dist/SHA256SUMS" \
             "dist/install.sh"

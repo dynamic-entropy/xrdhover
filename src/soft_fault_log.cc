@@ -1,11 +1,11 @@
-#include "readgen/soft_fault_log.hh"
+#include "xrdhover/soft_fault_log.hh"
 
 #include <XrdCl/XrdClDefaultEnv.hh>
 
 #include <cstdio>
 #include <mutex>
 
-namespace readgen {
+namespace xrdhover {
 namespace {
 
 std::mutex g_stderr_mu;
@@ -55,4 +55,4 @@ void SoftFaultLogOut::TearDown() {
     XrdCl::DefaultEnv::GetLog()->SetOutput(new XrdCl::LogOutCerr());
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

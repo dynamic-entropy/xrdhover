@@ -1,9 +1,9 @@
-#include "readgen/token_bucket.hh"
+#include "xrdhover/token_bucket.hh"
 
 #include <algorithm>
 #include <thread>
 
-namespace readgen {
+namespace xrdhover {
 
 TokenBucket::TokenBucket(uint64_t rate_bytes_per_s, uint64_t burst_bytes)
     : rate_bytes_per_s_(rate_bytes_per_s),
@@ -70,4 +70,4 @@ void TokenBucket::Refund(uint64_t n) {
     tokens_ = std::min(static_cast<double>(capacity_), tokens_ + static_cast<double>(n));
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

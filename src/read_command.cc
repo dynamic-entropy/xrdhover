@@ -1,12 +1,12 @@
-#include "readgen/read_command.hh"
+#include "xrdhover/read_command.hh"
 
-#include "readgen/file_session.hh"
-#include "readgen/units.hh"
+#include "xrdhover/file_session.hh"
+#include "xrdhover/units.hh"
 
 #include <cinttypes>
 #include <cstdio>
 
-namespace readgen {
+namespace xrdhover {
 namespace {
 
 void PrintResult(const FileSessionResult& r, bool json) {
@@ -60,4 +60,4 @@ int RunReadCommand(const ReadOptions& opts) {
     return 0;
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

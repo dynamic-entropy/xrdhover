@@ -1,8 +1,8 @@
-#include "readgen/inflight.hh"
+#include "xrdhover/inflight.hh"
 
 #include <algorithm>
 
-namespace readgen {
+namespace xrdhover {
 
 InFlightSemaphore::InFlightSemaphore(uint32_t max_inflight) : max_(max_inflight == 0 ? 1 : max_inflight) {}
 
@@ -32,4 +32,4 @@ uint32_t InFlightSemaphore::peak() const {
     return peak_;
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

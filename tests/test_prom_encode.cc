@@ -1,5 +1,5 @@
-#include "readgen/metrics.hh"
-#include "readgen/prom_encode.hh"
+#include "xrdhover/metrics.hh"
+#include "xrdhover/prom_encode.hh"
 
 #include <gtest/gtest.h>
 
@@ -7,9 +7,9 @@
 #include <string>
 #include <vector>
 
-using readgen::EncodePrometheusText;
-using readgen::ErrorClass;
-using readgen::MetricsRegistry;
+using xrdhover::EncodePrometheusText;
+using xrdhover::ErrorClass;
+using xrdhover::MetricsRegistry;
 
 TEST(PromEncode, ContainsCoreSeriesAndHistogramBuckets) {
     MetricsRegistry reg;
@@ -29,28 +29,28 @@ TEST(PromEncode, ContainsCoreSeriesAndHistogramBuckets) {
     EXPECT_NEAR(snap2.achieved_rate_bytes, 2048.0 / 2.25, 1e-6);
 
     const std::string text = EncodePrometheusText(snap2);
-    EXPECT_NE(text.find("readgen_bytes_read_total{"), std::string::npos);
+    EXPECT_NE(text.find("xrdhover_bytes_read_total{"), std::string::npos);
     EXPECT_NE(text.find("run_id=\"run-a\""), std::string::npos);
     EXPECT_NE(text.find("job_id=\"host1\""), std::string::npos);
-    EXPECT_NE(text.find("readgen_sessions_total{"), std::string::npos);
+    EXPECT_NE(text.find("xrdhover_sessions_total{"), std::string::npos);
     EXPECT_NE(text.find("result=\"ok\""), std::string::npos);
     EXPECT_NE(text.find("result=\"fail\""), std::string::npos);
-    EXPECT_NE(text.find("# TYPE readgen_open_seconds histogram"), std::string::npos);
-    EXPECT_NE(text.find("readgen_open_seconds_bucket{"), std::string::npos);
+    EXPECT_NE(text.find("# TYPE xrdhover_open_seconds histogram"), std::string::npos);
+    EXPECT_NE(text.find("xrdhover_open_seconds_bucket{"), std::string::npos);
     EXPECT_NE(text.find("le=\"+Inf\""), std::string::npos);
-    EXPECT_NE(text.find("readgen_open_seconds_sum{"), std::string::npos);
-    EXPECT_NE(text.find("readgen_open_seconds_count{"), std::string::npos);
+    EXPECT_NE(text.find("xrdhover_open_seconds_sum{"), std::string::npos);
+    EXPECT_NE(text.find("xrdhover_open_seconds_count{"), std::string::npos);
     EXPECT_NE(text.find("class=\"timeout\""), std::string::npos);
-    EXPECT_NE(text.find("readgen_target_rate_bytes{"), std::string::npos);
-    EXPECT_NE(text.find("readgen_achieved_rate_bytes{"), std::string::npos);
-    EXPECT_NE(text.find("readgen_endpoint_bytes_total{"), std::string::npos);
-    EXPECT_NE(text.find("readgen_endpoint_achieved_rate_bytes{"), std::string::npos);
+    EXPECT_NE(text.find("xrdhover_target_rate_bytes{"), std::string::npos);
+    EXPECT_NE(text.find("xrdhover_achieved_rate_bytes{"), std::string::npos);
+    EXPECT_NE(text.find("xrdhover_endpoint_bytes_total{"), std::string::npos);
+    EXPECT_NE(text.find("xrdhover_endpoint_achieved_rate_bytes{"), std::string::npos);
     EXPECT_NE(text.find("data_server=\"srv-a:1094\""), std::string::npos);
     EXPECT_NE(text.find("data_server=\"srv-b:1094\""), std::string::npos);
-    EXPECT_NE(text.find("readgen_endpoint_sessions_total{"), std::string::npos);
+    EXPECT_NE(text.find("xrdhover_endpoint_sessions_total{"), std::string::npos);
 }
 
-TEST(PromEncode, AllMetricNamesUseReadgenPrefix) {
+TEST(PromEncode, AllMetricNamesUseXrdhoverPrefix) {
     MetricsRegistry reg;
     reg.SetLabels("run-a", "host1", "default", "root://localhost/");
     reg.SetConfigGauges(10 * 1024 * 1024, 4);
@@ -74,7 +74,7 @@ TEST(PromEncode, AllMetricNamesUseReadgenPrefix) {
     }
     ASSERT_FALSE(names.empty());
     for (const auto& name : names) {
-        EXPECT_EQ(name.compare(0, 8, "readgen_"), 0) << name;
+        EXPECT_EQ(name.compare(0, 9, "xrdhover_"), 0) << name;
         EXPECT_NE(name.compare(0, 8, "process_"), 0) << name;
         EXPECT_NE(name.compare(0, 3, "go_"), 0) << name;
     }

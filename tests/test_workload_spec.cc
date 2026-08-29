@@ -1,4 +1,4 @@
-#include "readgen/workload_spec.hh"
+#include "xrdhover/workload_spec.hh"
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
@@ -8,10 +8,10 @@
 #include <string>
 #include <unistd.h>
 
-using readgen::ToRunConfig;
-using readgen::ValidateWorkloadFile;
-using readgen::ValidateWorkloadJson;
-using readgen::ValidateResult;
+using xrdhover::ToRunConfig;
+using xrdhover::ValidateWorkloadFile;
+using xrdhover::ValidateWorkloadJson;
+using xrdhover::ValidateResult;
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
@@ -59,7 +59,7 @@ TEST(WorkloadSpec, ValidMinimalStableHash) {
 TEST(WorkloadSpec, RelativeFilelistIgnoresCwd) {
     const auto fixture = FixtureDir();
     const auto path = fixture / "valid_minimal.json";
-    const fs::path tmp = fs::temp_directory_path() / ("readgen_wl_" + std::to_string(::getpid()));
+    const fs::path tmp = fs::temp_directory_path() / ("xrdhover_wl_" + std::to_string(::getpid()));
     fs::create_directories(tmp);
     const auto cwd = fs::current_path();
     fs::current_path(tmp);
@@ -156,7 +156,7 @@ TEST(WorkloadSpec, MissingFilelist) {
 }
 
 TEST(WorkloadSpec, JsonParseErrorReportsPath) {
-    const fs::path tmp = fs::temp_directory_path() / ("readgen_badjson_" + std::to_string(::getpid()));
+    const fs::path tmp = fs::temp_directory_path() / ("xrdhover_badjson_" + std::to_string(::getpid()));
     {
         std::ofstream out(tmp);
         out << "{ not json";

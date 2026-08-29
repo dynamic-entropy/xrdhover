@@ -1,11 +1,11 @@
-#include "readgen/token_bucket.hh"
+#include "xrdhover/token_bucket.hh"
 
 #include <gtest/gtest.h>
 
 #include <chrono>
 #include <thread>
 
-using readgen::TokenBucket;
+using xrdhover::TokenBucket;
 using Clock = std::chrono::steady_clock;
 
 TEST(TokenBucket, Uncapped) {

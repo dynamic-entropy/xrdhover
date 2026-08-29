@@ -1,8 +1,8 @@
-#include "readgen/scheduler.hh"
+#include "xrdhover/scheduler.hh"
 
 #include <algorithm>
 
-namespace readgen {
+namespace xrdhover {
 
 Scheduler::Scheduler(const RunConfig& cfg) : cfg_(cfg), rng_(cfg.seed) {}
 
@@ -45,4 +45,4 @@ WorkItem Scheduler::Next() {
     return item;
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

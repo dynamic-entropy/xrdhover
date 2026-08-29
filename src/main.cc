@@ -6,27 +6,27 @@
 #include <stdexcept>
 #include <string>
 
-#include "readgen/build_info.hh"
-#include "readgen/log.hh"
-#include "readgen/probe_command.hh"
-#include "readgen/read_command.hh"
-#include "readgen/report_command.hh"
-#include "readgen/run_command.hh"
-#include "readgen/run_config.hh"
-#include "readgen/units.hh"
-#include "readgen/workload_run_command.hh"
-#include "readgen/workload_spec.hh"
+#include "xrdhover/build_info.hh"
+#include "xrdhover/log.hh"
+#include "xrdhover/probe_command.hh"
+#include "xrdhover/read_command.hh"
+#include "xrdhover/report_command.hh"
+#include "xrdhover/run_command.hh"
+#include "xrdhover/run_config.hh"
+#include "xrdhover/units.hh"
+#include "xrdhover/workload_run_command.hh"
+#include "xrdhover/workload_spec.hh"
 
 #include <fstream>
 #include <vector>
 
 namespace {
 
-readgen::PatternType ParsePattern(const std::string& s) {
-    if (s == "sequential") return readgen::PatternType::Sequential;
-    if (s == "random") return readgen::PatternType::Random;
-    if (s == "vector") return readgen::PatternType::Vector;
-    if (s == "mixed") return readgen::PatternType::Mixed;
+xrdhover::PatternType ParsePattern(const std::string& s) {
+    if (s == "sequential") return xrdhover::PatternType::Sequential;
+    if (s == "random") return xrdhover::PatternType::Random;
+    if (s == "vector") return xrdhover::PatternType::Vector;
+    if (s == "mixed") return xrdhover::PatternType::Mixed;
     throw std::runtime_error("pattern must be sequential|random|vector|mixed");
 }
 
@@ -40,13 +40,13 @@ bool AnyCounted(const std::vector<CLI::Option*>& opts) {
 }  // namespace
 
 int main(int argc, char** argv) {
-    XrdCl::DefaultEnv::GetEnv()->PutString("AppName", std::string("xrd-readgen/") + READGEN_VERSION);
+    XrdCl::DefaultEnv::GetEnv()->PutString("AppName", std::string("xrdhover/") + XRDHOVER_VERSION);
 
-    CLI::App app{"xrd-readgen — XRootD remote-read traffic generator"};
+    CLI::App app{"xrdhover — XRootD remote-read traffic generator"};
     app.require_subcommand(1);
 
     // read
-    readgen::ReadOptions read_opts;
+    xrdhover::ReadOptions read_opts;
     auto* read_cmd = app.add_subcommand("read", "Timed single-file remote read (smoke test)");
     read_cmd->add_option("url", read_opts.url, "root:// URL of the file")->required();
     read_cmd->add_option("--chunk-size", read_opts.chunk_size, "Bytes per read op (default 1 MiB)");
@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
     read_cmd->add_flag("--json", read_opts.json, "JSON output");
 
     // run: legacy flags OR workload JSON (mutually exclusive modes)
-    readgen::RunConfig run_cfg;
+    xrdhover::RunConfig run_cfg;
     std::string duration_str = "30s";
     std::string rate_str;
     std::string chunk_str = "1MiB";
@@ -121,10 +121,10 @@ int main(int argc, char** argv) {
     auto* no_results_opt = run_cmd->add_flag("--no-results", no_results, "Disable FileSink output");
     auto* pushgateway_opt = run_cmd->add_option(
         "--pushgateway", run_cfg.pushgateway_url,
-        "Push metrics to Pushgateway base URL (e.g. http://xrdmon.cern.ch:9091)");
+        "Push metrics to Pushgateway base URL (e.g. https://xrdprom.cern.ch:2094)");
     auto* pushgateway_job_opt =
         run_cmd->add_option("--pushgateway-job", run_cfg.pushgateway_job,
-                            "Pushgateway job label (default xrd-readgen)");
+                            "Pushgateway job label (default xrdhover)");
     auto* pushgateway_keep_opt = run_cmd->add_flag(
         "--pushgateway-keep", run_cfg.pushgateway_keep, "Do not DELETE Pushgateway group on exit");
     auto* site_map_opt = run_cmd->add_option(
@@ -147,7 +147,7 @@ int main(int argc, char** argv) {
     validate_cmd->add_option("workload", workload, "workload JSON")->required();
     validate_cmd->add_option("--out", validate_out, "Write canonical resolved JSON to PATH");
 
-    readgen::ProbeOptions probe_opts;
+    xrdhover::ProbeOptions probe_opts;
     auto* probe_cmd = app.add_subcommand("probe", "Pre-flight Open+TTFB probe of a workload");
     probe_cmd->add_option("workload", probe_opts.workload_path, "workload JSON")->required();
     probe_cmd->add_option("--target", probe_opts.target, "Probe only this target name");
@@ -158,23 +158,19 @@ int main(int argc, char** argv) {
     probe_cmd->add_flag("--skip-auth-check", probe_opts.skip_auth_check,
                        "Skip x509 proxy preflight (local GSI-less rehearsal)");
 
-    readgen::ReportOptions report_opts;
-    auto* report_cmd = app.add_subcommand(
-        "report", "Summarize FileSink result.json (single run or multi_run fleet)");
+    xrdhover::ReportOptions report_opts;
+    auto* report_cmd = app.add_subcommand("report", "Summarize FileSink result.json");
     report_cmd->add_option("path", report_opts.path,
                            "Run directory, result.json, or results root (with --run-id)");
     report_cmd->add_option("--results-dir", report_opts.results_dir,
                            "FileSink root (use with --run-id)");
-    report_cmd->add_option("--run-id", report_opts.run_id,
-                           "Run id under results root or i*/{run_id}/");
-    report_cmd->add_flag("--fleet", report_opts.fleet,
-                        "Require multi_run layout: results/i*/{run_id}/result.json");
+    report_cmd->add_option("--run-id", report_opts.run_id, "Run id under results root");
     report_cmd->add_flag("--json", report_opts.json, "JSON report on stdout");
     auto* version_cmd = app.add_subcommand("version", "Version info");
 
     CLI11_PARSE(app, argc, argv);
 
-    if (read_cmd->parsed()) return readgen::RunReadCommand(read_opts);
+    if (read_cmd->parsed()) return xrdhover::RunReadCommand(read_opts);
 
     if (run_cmd->parsed()) {
         if (no_sitename_query) run_cfg.sitename_query = false;
@@ -194,14 +190,14 @@ int main(int argc, char** argv) {
                              "(edit the JSON, or omit the workload path)\n");
                 return 2;
             }
-            readgen::WorkloadRunOptions wl_opts;
+            xrdhover::WorkloadRunOptions wl_opts;
             wl_opts.workload_path = run_workload;
             wl_opts.target = run_target;
             wl_opts.dry_run = run_cfg.dry_run;
             wl_opts.skip_auth_check = run_skip_auth;
             wl_opts.site_map_path = run_cfg.site_map_path;
             wl_opts.sitename_query = run_cfg.sitename_query;
-            return readgen::RunWorkloadCommand(wl_opts);
+            return xrdhover::RunWorkloadCommand(wl_opts);
         }
 
         if (run_target_opt->count() > 0 || run_skip_auth_opt->count() > 0) {
@@ -216,33 +212,33 @@ int main(int argc, char** argv) {
         }
 
         try {
-            run_cfg.duration_s = readgen::ParseDurationString(duration_str);
-            run_cfg.chunk_size = static_cast<uint32_t>(readgen::ParseSizeString(chunk_str));
+            run_cfg.duration_s = xrdhover::ParseDurationString(duration_str);
+            run_cfg.chunk_size = static_cast<uint32_t>(xrdhover::ParseSizeString(chunk_str));
             if (!rate_str.empty()) {
                 run_cfg.target_rate_input = rate_str;
-                run_cfg.target_rate_bytes_per_s = readgen::ParseTargetRateString(rate_str);
+                run_cfg.target_rate_bytes_per_s = xrdhover::ParseTargetRateString(rate_str);
             }
             if (max_bytes_str == "auto") {
                 run_cfg.max_bytes_auto = true;
             } else {
                 run_cfg.max_bytes_auto = false;
-                run_cfg.max_bytes = readgen::ParseSizeString(max_bytes_str);
+                run_cfg.max_bytes = xrdhover::ParseSizeString(max_bytes_str);
             }
             run_cfg.pattern = ParsePattern(pattern_str);
             run_cfg.filelist_path = filelist_path;
-            run_cfg.files = readgen::LoadFileList(filelist_path);
-            run_cfg.snapshot_interval_s = readgen::ParseDurationString(snapshot_str);
-            run_cfg.session_timeout_s = readgen::ParseDurationString(session_timeout_str);
+            run_cfg.files = xrdhover::LoadFileList(filelist_path);
+            run_cfg.snapshot_interval_s = xrdhover::ParseDurationString(snapshot_str);
+            run_cfg.session_timeout_s = xrdhover::ParseDurationString(session_timeout_str);
             run_cfg.write_results = !no_results;
         } catch (const std::exception& e) {
-            READGEN_LOG_ERR("error: %s", e.what());
+            XRDHOVER_LOG_ERR("error: %s", e.what());
             return 2;
         }
-        return readgen::RunRunCommand(run_cfg);
+        return xrdhover::RunRunCommand(run_cfg);
     }
 
     if (validate_cmd->parsed()) {
-        const auto result = readgen::ValidateWorkloadFile(workload);
+        const auto result = xrdhover::ValidateWorkloadFile(workload);
         if (!result.ok) {
             for (const auto& issue : result.issues) {
                 if (issue.field.empty()) {
@@ -270,10 +266,10 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "workload_hash=%s\n", result.workload_hash.c_str());
         return 0;
     }
-    if (probe_cmd->parsed()) return readgen::RunProbeCommand(probe_opts);
-    if (report_cmd->parsed()) return readgen::RunReportCommand(report_opts);
+    if (probe_cmd->parsed()) return xrdhover::RunProbeCommand(probe_opts);
+    if (report_cmd->parsed()) return xrdhover::RunReportCommand(report_opts);
     if (version_cmd->parsed()) {
-        std::printf("xrd-readgen %s (%s, XrdCl %s)\n", READGEN_VERSION, readgen::BuildArch(),
+        std::printf("xrdhover %s (%s, XrdCl %s)\n", XRDHOVER_VERSION, xrdhover::BuildArch(),
                     XrdVERSION);
         return 0;
     }

@@ -1,10 +1,10 @@
-#include "readgen/error_classifier.hh"
+#include "xrdhover/error_classifier.hh"
 
 #include <gtest/gtest.h>
 
-using readgen::ClassifyXRootDError;
-using readgen::ErrorClass;
-using readgen::ErrorClassName;
+using xrdhover::ClassifyXRootDError;
+using xrdhover::ErrorClass;
+using xrdhover::ErrorClassName;
 
 TEST(ErrorClassifier, Auth) {
     EXPECT_EQ(ClassifyXRootDError(0, 3010, ""), ErrorClass::Auth);

@@ -1,4 +1,4 @@
-#include "readgen/probe_command.hh"
+#include "xrdhover/probe_command.hh"
 
 #include <gtest/gtest.h>
 
@@ -10,16 +10,16 @@
 #include <thread>
 #include <unistd.h>
 
-using readgen::FileSessionOptions;
-using readgen::FileSessionResult;
-using readgen::ProbeOptions;
-using readgen::RunProbeCommand;
+using xrdhover::FileSessionOptions;
+using xrdhover::FileSessionResult;
+using xrdhover::ProbeOptions;
+using xrdhover::RunProbeCommand;
 namespace fs = std::filesystem;
 
 namespace {
 
 fs::path MakeWorkloadDir() {
-    const auto dir = fs::temp_directory_path() / ("readgen_probe_" + std::to_string(::getpid()));
+    const auto dir = fs::temp_directory_path() / ("xrdhover_probe_" + std::to_string(::getpid()));
     fs::remove_all(dir);
     fs::create_directories(dir);
     {
@@ -63,7 +63,7 @@ TEST(ProbeCommand, AllOkExit0) {
     opts.skip_auth_check = true;
     opts.concurrency = 2;
     opts.json = true;
-    opts.session_runner = [&](const FileSessionOptions& o, readgen::FileSessionDone done) {
+    opts.session_runner = [&](const FileSessionOptions& o, xrdhover::FileSessionDone done) {
         ++starts;
         FileSessionResult r;
         r.ok = true;
@@ -87,7 +87,7 @@ TEST(ProbeCommand, LimitAndTarget) {
     opts.skip_auth_check = true;
     opts.target = "t0";
     opts.limit = 1;
-    opts.session_runner = [&](const FileSessionOptions& o, readgen::FileSessionDone done) {
+    opts.session_runner = [&](const FileSessionOptions& o, xrdhover::FileSessionDone done) {
         ++starts;
         FileSessionResult r;
         r.ok = true;
@@ -105,7 +105,7 @@ TEST(ProbeCommand, UnknownTargetExit2) {
     opts.workload_path = (dir / "wl.json").string();
     opts.skip_auth_check = true;
     opts.target = "missing";
-    opts.session_runner = [](const FileSessionOptions&, readgen::FileSessionDone) {};
+    opts.session_runner = [](const FileSessionOptions&, xrdhover::FileSessionDone) {};
     EXPECT_EQ(RunProbeCommand(opts), 2);
     fs::remove_all(dir);
 }
@@ -116,7 +116,7 @@ TEST(ProbeCommand, ProbeFailureExit1) {
     opts.workload_path = (dir / "wl.json").string();
     opts.skip_auth_check = true;
     opts.limit = 1;
-    opts.session_runner = [](const FileSessionOptions& o, readgen::FileSessionDone done) {
+    opts.session_runner = [](const FileSessionOptions& o, xrdhover::FileSessionDone done) {
         FileSessionResult r;
         r.ok = false;
         r.url = o.url;
@@ -135,7 +135,7 @@ TEST(ProbeCommand, AuthPreflightExit2WithoutSkip) {
     opts.skip_auth_check = false;
     // Point at a missing proxy via env so default path is irrelevant.
     setenv("X509_USER_PROXY", (dir / "no-proxy").c_str(), 1);
-    opts.session_runner = [](const FileSessionOptions&, readgen::FileSessionDone) {};
+    opts.session_runner = [](const FileSessionOptions&, xrdhover::FileSessionDone) {};
     EXPECT_EQ(RunProbeCommand(opts), 2);
     unsetenv("X509_USER_PROXY");
     fs::remove_all(dir);

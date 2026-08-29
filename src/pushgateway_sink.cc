@@ -1,11 +1,11 @@
-#include "readgen/pushgateway_sink.hh"
+#include "xrdhover/pushgateway_sink.hh"
 
-#include "readgen/prom_encode.hh"
+#include "xrdhover/prom_encode.hh"
 
 #include <cstdio>
 #include <stdexcept>
 
-namespace readgen {
+namespace xrdhover {
 namespace {
 
 size_t DiscardWrite(char*, size_t size, size_t nmemb, void*) { return size * nmemb; }
@@ -20,7 +20,7 @@ std::string TrimTrailingSlash(std::string u) {
 PushgatewaySink::PushgatewaySink(std::string base_url, std::string push_job)
     : base_url_(TrimTrailingSlash(std::move(base_url))), push_job_(std::move(push_job)) {
     if (base_url_.empty()) throw std::runtime_error("pushgateway URL is empty");
-    if (push_job_.empty()) push_job_ = "xrd-readgen";
+    if (push_job_.empty()) push_job_ = "xrdhover";
 
     curl_ = curl_easy_init();
     if (!curl_) throw std::runtime_error("pushgateway: curl_easy_init failed");
@@ -122,4 +122,4 @@ void PushgatewaySink::Finish(const std::string& instance) {
     (void)HttpRequest("DELETE", GroupUrl(inst), {}, nullptr);
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

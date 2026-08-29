@@ -1,11 +1,11 @@
-#include "readgen/log.hh"
+#include "xrdhover/log.hh"
 
 #include <chrono>
 #include <cstdarg>
 #include <ctime>
 #include <mutex>
 
-namespace readgen {
+namespace xrdhover {
 namespace {
 
 std::mutex g_log_mu;
@@ -43,4 +43,4 @@ void LogTo(std::FILE* stream, const char* fmt, ...) {
     std::fflush(stream);
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

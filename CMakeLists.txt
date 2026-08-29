@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.24)
 
-# Default for local builds; release builds pass -DREADGEN_VERSION=<tag> so the
+# Default for local builds; release builds pass -DXRDHOVER_VERSION=<tag> so the
 # binary matches the GitHub release / tarball name.
-if(NOT DEFINED READGEN_VERSION)
-  set(READGEN_VERSION "0.1.4")
+if(NOT DEFINED XRDHOVER_VERSION)
+  set(XRDHOVER_VERSION "0.2.0")
 endif()
 
-project(xrd-readgen
-  VERSION ${READGEN_VERSION}
+project(xrdhover
+  VERSION ${XRDHOVER_VERSION}
   DESCRIPTION "XRootD remote-read traffic generator for CMS / WLCG data challenges"
   LANGUAGES CXX)
 
@@ -19,7 +19,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
 
-find_package(XRootD REQUIRED COMPONENTS CLIENT)
+find_package(XRootD 6 REQUIRED COMPONENTS CLIENT)
 find_package(CURL REQUIRED)
 find_package(OpenSSL REQUIRED)
 
@@ -34,7 +34,7 @@ FetchContent_Declare(json
   DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 FetchContent_MakeAvailable(json)
 
-set(READGEN_SOURCES
+set(XRDHOVER_SOURCES
   src/file_session.cc
   src/log.cc
   src/read_command.cc
@@ -59,29 +59,29 @@ set(READGEN_SOURCES
   src/site_map.cc
   src/sitename_resolver.cc)
 
-add_executable(xrd-readgen
+add_executable(xrdhover
   src/main.cc
-  ${READGEN_SOURCES})
+  ${XRDHOVER_SOURCES})
 
-target_include_directories(xrd-readgen PRIVATE include)
+target_include_directories(xrdhover PRIVATE include)
 
-target_compile_definitions(xrd-readgen PRIVATE
-  READGEN_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(xrdhover PRIVATE
+  XRDHOVER_VERSION="${PROJECT_VERSION}")
 
-target_compile_options(xrd-readgen PRIVATE -Wall -Wextra)
+target_compile_options(xrdhover PRIVATE -Wall -Wextra)
 
-target_link_libraries(xrd-readgen PRIVATE
+target_link_libraries(xrdhover PRIVATE
   XRootD::XrdCl
   CLI11::CLI11
   nlohmann_json::nlohmann_json
   CURL::libcurl
   OpenSSL::Crypto)
 
-install(TARGETS xrd-readgen RUNTIME DESTINATION bin)
+install(TARGETS xrdhover RUNTIME DESTINATION bin)
 
-option(READGEN_ENABLE_TESTS "Build unit tests" ON)
+option(XRDHOVER_ENABLE_TESTS "Build unit tests" ON)
 
-if(READGEN_ENABLE_TESTS)
+if(XRDHOVER_ENABLE_TESTS)
   enable_testing()
 
   FetchContent_Declare(googletest
@@ -92,7 +92,7 @@ if(READGEN_ENABLE_TESTS)
   set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(googletest)
 
-  add_executable(xrd-readgen-tests
+  add_executable(xrdhover-tests
     tests/test_units.cc
     tests/test_token_bucket.cc
     tests/test_error_classifier.cc
@@ -130,14 +130,14 @@ if(READGEN_ENABLE_TESTS)
     src/site_map.cc
     src/sitename_resolver.cc)
 
-  target_include_directories(xrd-readgen-tests PRIVATE include)
-  target_compile_options(xrd-readgen-tests PRIVATE -Wall -Wextra)
-  target_link_libraries(xrd-readgen-tests PRIVATE
+  target_include_directories(xrdhover-tests PRIVATE include)
+  target_compile_options(xrdhover-tests PRIVATE -Wall -Wextra)
+  target_link_libraries(xrdhover-tests PRIVATE
     GTest::gtest_main
     nlohmann_json::nlohmann_json
     XRootD::XrdCl
     OpenSSL::Crypto)
 
   include(GoogleTest)
-  gtest_discover_tests(xrd-readgen-tests)
+  gtest_discover_tests(xrdhover-tests)
 endif()

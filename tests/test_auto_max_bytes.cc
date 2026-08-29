@@ -1,14 +1,14 @@
-#include "readgen/run_config.hh"
+#include "xrdhover/run_config.hh"
 
 #include <algorithm>
 #include <stdexcept>
 
 #include <gtest/gtest.h>
 
-using readgen::ComputeAutoMaxBytes;
-using readgen::ComputeBucketBurst;
-using readgen::ResolveRunConfig;
-using readgen::RunConfig;
+using xrdhover::ComputeAutoMaxBytes;
+using xrdhover::ComputeBucketBurst;
+using xrdhover::ResolveRunConfig;
+using xrdhover::RunConfig;
 
 TEST(AutoMaxBytes, ScalesWithMaxInflight) {
     RunConfig cfg;
@@ -19,10 +19,10 @@ TEST(AutoMaxBytes, ScalesWithMaxInflight) {
     cfg.max_inflight = 32;
     const uint64_t b = ComputeAutoMaxBytes(cfg);
     EXPECT_GT(a, b);
-    EXPECT_GE(a, static_cast<uint64_t>(cfg.chunk_size) * readgen::kAutoMaxFloorChunks);
+    EXPECT_GE(a, static_cast<uint64_t>(cfg.chunk_size) * xrdhover::kAutoMaxFloorChunks);
     const uint64_t aggregate_cap = static_cast<uint64_t>(
-        static_cast<double>(cfg.target_rate_bytes_per_s) * readgen::kRateHeadroomSec);
-    EXPECT_LE(a, std::min(aggregate_cap, readgen::kAutoMaxHardCapBytes));
+        static_cast<double>(cfg.target_rate_bytes_per_s) * xrdhover::kRateHeadroomSec);
+    EXPECT_LE(a, std::min(aggregate_cap, xrdhover::kAutoMaxHardCapBytes));
 }
 
 TEST(AutoMaxBytes, RespectsHardCap) {
@@ -30,7 +30,7 @@ TEST(AutoMaxBytes, RespectsHardCap) {
     cfg.target_rate_bytes_per_s = 500ull * 1000 * 1000;  // 500 MB/s SI
     cfg.chunk_size = 1 << 20;
     cfg.max_inflight = 1;  // amortize would be huge without the hard cap
-    EXPECT_LE(ComputeAutoMaxBytes(cfg), readgen::kAutoMaxHardCapBytes);
+    EXPECT_LE(ComputeAutoMaxBytes(cfg), xrdhover::kAutoMaxHardCapBytes);
 }
 
 TEST(AutoMaxBytes, ResolveSetsMaxBytes) {
@@ -77,5 +77,5 @@ TEST(BucketBurst, CoversMaxInflightPipeline) {
     const uint64_t burst = ComputeBucketBurst(cfg);
     EXPECT_GE(burst, cfg.max_bytes * cfg.max_inflight);
     EXPECT_GE(burst, static_cast<uint64_t>(static_cast<double>(cfg.target_rate_bytes_per_s) *
-                                           readgen::kRateHeadroomSec));
+                                           xrdhover::kRateHeadroomSec));
 }

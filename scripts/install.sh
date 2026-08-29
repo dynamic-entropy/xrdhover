@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Install xrd-readgen from GitHub Releases into /usr/local (override with PREFIX).
+# Install xrdhover from GitHub Releases into /usr/local (override with PREFIX).
 #
-#   curl -fsSL https://github.com/dynamic-entropy/xrd-readgen/releases/latest/download/install.sh | sudo bash
+#   curl -fsSL https://github.com/dynamic-entropy/xrdhover/releases/latest/download/install.sh | sudo bash
 #   VERSION=0.1.0 ./install.sh
 #
 set -euo pipefail
 
-REPO="${REPO:-dynamic-entropy/xrd-readgen}"
+REPO="${REPO:-dynamic-entropy/xrdhover}"
 PREFIX="${PREFIX:-/usr/local}"
-CONFIG_DIR="${CONFIG_DIR:-/etc/xrd-readgen}"
-RESULTS_DIR="${RESULTS_DIR:-/var/lib/xrd-readgen/results}"
+CONFIG_DIR="${CONFIG_DIR:-/etc/xrdhover}"
+RESULTS_DIR="${RESULTS_DIR:-/var/lib/xrdhover/results}"
 ARCH="${ARCH:-linux-amd64}"
 VERSION="${VERSION:-}"
 TMPDIR="${TMPDIR:-/tmp}"
@@ -66,7 +66,7 @@ echo "==> checking prerequisites"
 
 if [[ "$(uname -s)" != "Linux" ]]; then
   add_missing "OS is $(uname -s), need Linux" \
-    "run this installer on linux/amd64 (e.g. cmsxrd-readgen-amd64 / el10)"
+    "run this installer on linux/amd64 (e.g. cmsxrdhover-amd64 / el10)"
 fi
 
 host_arch="$(uname -m)"
@@ -123,7 +123,7 @@ fi
 
 echo "  ok: Linux/${host_arch}, curl, tar, libXrdCl, libcurl, libcrypto"
 
-WORKDIR="$(mktemp -d "${TMPDIR%/}/xrd-readgen-install.XXXXXX")"
+WORKDIR="$(mktemp -d "${TMPDIR%/}/xrdhover-install.XXXXXX")"
 cleanup() { rm -rf "$WORKDIR"; }
 trap cleanup EXIT
 
@@ -151,7 +151,7 @@ if [[ -z "$VERSION" ]]; then
   exit 1
 fi
 
-asset="xrd-readgen-${VERSION}-${ARCH}.tar.gz"
+asset="xrdhover-${VERSION}-${ARCH}.tar.gz"
 base="https://github.com/${REPO}/releases/download/v${VERSION}"
 echo "==> downloading ${asset}"
 if ! curl -fsSL -o "${WORKDIR}/${asset}" "${base}/${asset}"; then
@@ -176,15 +176,15 @@ fi
 
 echo "==> extracting"
 tar -C "$WORKDIR" -xzf "${WORKDIR}/${asset}"
-src="${WORKDIR}/xrd-readgen-${VERSION}-${ARCH}"
-if [[ ! -x "${src}/bin/xrd-readgen" ]]; then
-  echo "error: tarball missing bin/xrd-readgen" >&2
+src="${WORKDIR}/xrdhover-${VERSION}-${ARCH}"
+if [[ ! -x "${src}/bin/xrdhover" ]]; then
+  echo "error: tarball missing bin/xrdhover" >&2
   exit 1
 fi
 
 # Catch unresolved dynamic deps before installing.
 if have_cmd ldd; then
-  unresolved="$(ldd "${src}/bin/xrd-readgen" 2>/dev/null | awk '/not found/ { print $1 }' || true)"
+  unresolved="$(ldd "${src}/bin/xrdhover" 2>/dev/null | awk '/not found/ { print $1 }' || true)"
   if [[ -n "$unresolved" ]]; then
     echo "error: binary is missing shared libraries:" >&2
     printf '  - %s\n' $unresolved >&2
@@ -195,15 +195,9 @@ fi
 
 echo "==> installing to ${PREFIX}"
 install -d "${PREFIX}/bin" "${PREFIX}/share"
-install -m 0755 "${src}/bin/xrd-readgen" "${PREFIX}/bin/xrd-readgen"
-if [[ -f "${src}/bin/multi_run.py" ]]; then
-  install -m 0755 "${src}/bin/multi_run.py" "${PREFIX}/bin/multi_run.py"
-fi
-if [[ -f "${src}/bin/capacity_sweep.py" ]]; then
-  install -m 0755 "${src}/bin/capacity_sweep.py" "${PREFIX}/bin/capacity_sweep.py"
-fi
-rm -rf "${PREFIX}/share/xrd-readgen"
-cp -a "${src}/share/xrd-readgen" "${PREFIX}/share/"
+install -m 0755 "${src}/bin/xrdhover" "${PREFIX}/bin/xrdhover"
+rm -rf "${PREFIX}/share/xrdhover"
+cp -a "${src}/share/xrdhover" "${PREFIX}/share/"
 
 echo "==> ensuring config/results dirs"
 install -d -m 0755 \
@@ -219,27 +213,19 @@ seed_file() {
     echo "  seeded ${to}"
   fi
 }
-share="${PREFIX}/share/xrd-readgen"
+share="${PREFIX}/share/xrdhover"
 seed_file "${share}/workloads/example.json" "${CONFIG_DIR}/workloads/example.json"
-seed_file "${share}/workloads/example_workload.json" "${CONFIG_DIR}/workloads/example_workload.json"
-seed_file "${share}/workloads/example_uncapped.json" "${CONFIG_DIR}/workloads/example_uncapped.json"
+seed_file "${share}/workloads/job.json" "${CONFIG_DIR}/workloads/job.json"
 seed_file "${share}/filelists/local.txt" "${CONFIG_DIR}/filelists/local.txt"
-seed_file "${share}/filelists/remote.txt" "${CONFIG_DIR}/filelists/remote.txt"
-seed_file "${share}/filelists/remote_single.txt" "${CONFIG_DIR}/filelists/remote_single.txt"
+seed_file "${share}/filelists/files.txt" "${CONFIG_DIR}/filelists/files.txt"
 
 echo "==> done"
-echo "  binary:  ${PREFIX}/bin/xrd-readgen"
-if [[ -x "${PREFIX}/bin/multi_run.py" ]]; then
-  echo "  multi_run.py:       ${PREFIX}/bin/multi_run.py"
-fi
-if [[ -x "${PREFIX}/bin/capacity_sweep.py" ]]; then
-  echo "  capacity_sweep.py:  ${PREFIX}/bin/capacity_sweep.py"
-fi
+echo "  binary:  ${PREFIX}/bin/xrdhover"
 echo "  config:  ${CONFIG_DIR}"
 echo "  results: ${RESULTS_DIR}"
-if ! reported="$("${PREFIX}/bin/xrd-readgen" version)"; then
+if ! reported="$("${PREFIX}/bin/xrdhover" version)"; then
   echo "error: installed binary failed to run 'version'" >&2
-  echo "  fix: check 'ldd ${PREFIX}/bin/xrd-readgen' for missing libraries" >&2
+  echo "  fix: check 'ldd ${PREFIX}/bin/xrdhover' for missing libraries" >&2
   exit 1
 fi
 echo "  ${reported}"

@@ -1,9 +1,9 @@
-#include "readgen/soft_fault_log.hh"
+#include "xrdhover/soft_fault_log.hh"
 
 #include <gtest/gtest.h>
 
-using readgen::ClassifySoftFaultMessage;
-using readgen::IsXrdClErrorLogLine;
+using xrdhover::ClassifySoftFaultMessage;
+using xrdhover::IsXrdClErrorLogLine;
 
 TEST(SoftFault, DetectsErrorLines) {
     EXPECT_TRUE(IsXrdClErrorLogLine(

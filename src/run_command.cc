@@ -1,20 +1,20 @@
-#include "readgen/run_command.hh"
+#include "xrdhover/run_command.hh"
 
-#include "readgen/build_info.hh"
-#include "readgen/error_classifier.hh"
-#include "readgen/file_session.hh"
-#include "readgen/file_sink.hh"
-#include "readgen/inflight.hh"
-#include "readgen/log.hh"
-#include "readgen/metrics.hh"
-#include "readgen/pushgateway_sink.hh"
-#include "readgen/scheduler.hh"
-#include "readgen/site_map.hh"
-#include "readgen/sitename_resolver.hh"
-#include "readgen/soft_fault_log.hh"
-#include "readgen/token_bucket.hh"
-#include "readgen/units.hh"
-#include "readgen/xrdcl_env.hh"
+#include "xrdhover/build_info.hh"
+#include "xrdhover/error_classifier.hh"
+#include "xrdhover/file_session.hh"
+#include "xrdhover/file_sink.hh"
+#include "xrdhover/inflight.hh"
+#include "xrdhover/log.hh"
+#include "xrdhover/metrics.hh"
+#include "xrdhover/pushgateway_sink.hh"
+#include "xrdhover/scheduler.hh"
+#include "xrdhover/site_map.hh"
+#include "xrdhover/sitename_resolver.hh"
+#include "xrdhover/soft_fault_log.hh"
+#include "xrdhover/token_bucket.hh"
+#include "xrdhover/units.hh"
+#include "xrdhover/xrdcl_env.hh"
 
 #include <XrdVersion.hh>
 #include <curl/curl.h>
@@ -29,11 +29,11 @@
 #include <thread>
 #include <unistd.h>
 
-#ifndef READGEN_VERSION
-#define READGEN_VERSION "0.0.0"
+#ifndef XRDHOVER_VERSION
+#define XRDHOVER_VERSION "0.0.0"
 #endif
 
-namespace readgen {
+namespace xrdhover {
 namespace {
 
 using Clock = std::chrono::steady_clock;
@@ -106,17 +106,17 @@ int RunEngine(const RunConfig& cfg) {
         try {
             site_map = SiteMap::LoadFile(cfg.site_map_path);
             site_map_ptr = &site_map;
-            READGEN_LOG_ERR("site_map: loaded %zu entries from %s", site_map.size(),
+            XRDHOVER_LOG_ERR("site_map: loaded %zu entries from %s", site_map.size(),
                          cfg.site_map_path.c_str());
         } catch (const std::exception& e) {
-            READGEN_LOG_ERR("error: %s", e.what());
+            XRDHOVER_LOG_ERR("error: %s", e.what());
             return 2;
         }
     }
 
     SitenameResolver sitename_resolver;
     if (cfg.sitename_query) {
-        READGEN_LOG_ERR(
+        XRDHOVER_LOG_ERR(
             "sitename_query: on (background thread; independent of I/O and scheduling)");
     }
 
@@ -154,7 +154,7 @@ int RunEngine(const RunConfig& cfg) {
     double cpu_at_start = 0.0;
     if (cfg.write_results) {
         RunInfoMeta meta;
-        meta.version = READGEN_VERSION;
+        meta.version = XRDHOVER_VERSION;
         meta.arch = BuildArch();
         meta.xrdcl_version = XrdVERSION;
         meta.seed = cfg.seed;
@@ -167,20 +167,20 @@ int RunEngine(const RunConfig& cfg) {
         try {
             sink->Start();
         } catch (const std::exception& e) {
-            READGEN_LOG_ERR("error: %s", e.what());
+            XRDHOVER_LOG_ERR("error: %s", e.what());
             return 2;
         }
-        READGEN_LOG_ERR("results: %s", sink->run_dir().c_str());
+        XRDHOVER_LOG_ERR("results: %s", sink->run_dir().c_str());
     }
     if (!cfg.pushgateway_url.empty()) {
         curl_global_init(CURL_GLOBAL_DEFAULT);
         try {
             push = std::make_unique<PushgatewaySink>(cfg.pushgateway_url, cfg.pushgateway_job);
         } catch (const std::exception& e) {
-            READGEN_LOG_ERR("error: %s", e.what());
+            XRDHOVER_LOG_ERR("error: %s", e.what());
             return 2;
         }
-        READGEN_LOG_ERR("pushgateway: %s (job=%s instance=%s)", cfg.pushgateway_url.c_str(),
+        XRDHOVER_LOG_ERR("pushgateway: %s (job=%s instance=%s)", cfg.pushgateway_url.c_str(),
                      cfg.pushgateway_job.c_str(), job_id.c_str());
     }
     if (sink || push) {
@@ -195,7 +195,7 @@ int RunEngine(const RunConfig& cfg) {
     const auto deadline = t0 + std::chrono::duration_cast<Clock::duration>(
                                    std::chrono::duration<double>(cfg.duration_s));
 
-    READGEN_LOG_ERR("run %s: duration=%s rate=%s max_inflight=%" PRIu32
+    XRDHOVER_LOG_ERR("run %s: duration=%s rate=%s max_inflight=%" PRIu32
                     " pattern=%s files=%zu burst=%s",
                     cfg.run_id.c_str(), FormatDuration(cfg.duration_s).c_str(),
                     DescribeTargetRate(cfg).c_str(), cfg.max_inflight, PatternTypeName(cfg.pattern),
@@ -210,7 +210,7 @@ int RunEngine(const RunConfig& cfg) {
         if (sink) sink->WriteSnapshot(snap);
         if (push) {
             if (!push->Push(snap)) {
-                READGEN_LOG_ERR("warning: pushgateway push failed");
+                XRDHOVER_LOG_ERR("warning: pushgateway push failed");
             }
         }
     };
@@ -292,7 +292,7 @@ int RunEngine(const RunConfig& cfg) {
                         file = slash == std::string::npos ? result.url : result.url.substr(slash + 1);
                         if (file.empty()) file = "(unknown)";
                     }
-                    READGEN_LOG_ERR(
+                    XRDHOVER_LOG_ERR(
                         "session error: %s data_server=%s file=%s "
                         "bytes_read=%" PRIu64 " ops=%" PRIu64 " open_ms=%.0f total_s=%.1f",
                         result.error.c_str(), ds, file.c_str(), result.bytes_read, result.ops,
@@ -325,7 +325,7 @@ int RunEngine(const RunConfig& cfg) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     if (live.load(std::memory_order_relaxed) > 0) {
-        READGEN_LOG_ERR("warning: drain timed out with %" PRIu64 " session(s) still live",
+        XRDHOVER_LOG_ERR("warning: drain timed out with %" PRIu64 " session(s) still live",
                      live.load(std::memory_order_relaxed));
     }
 
@@ -346,12 +346,12 @@ int RunEngine(const RunConfig& cfg) {
             sink->WriteSnapshot(final_snap);
             sink->WriteResult(final_snap, cpu_at_start);
         } catch (const std::exception& e) {
-            READGEN_LOG_ERR("warning: results write failed: %s", e.what());
+            XRDHOVER_LOG_ERR("warning: results write failed: %s", e.what());
         }
     }
     if (push) {
         if (!push->Push(final_snap)) {
-            READGEN_LOG_ERR("warning: final pushgateway push failed");
+            XRDHOVER_LOG_ERR("warning: final pushgateway push failed");
         }
         // Overwrite rate gauges with 0 so Grafana/Prometheus do not hold the last
         // achieved rate after the process exits (lastNotNull / scrape lag).
@@ -361,12 +361,12 @@ int RunEngine(const RunConfig& cfg) {
         idle.by_data_server.clear();
         idle.by_cms_site.clear();
         if (!push->Push(idle)) {
-            READGEN_LOG_ERR("warning: idle (zero-rate) pushgateway push failed");
+            XRDHOVER_LOG_ERR("warning: idle (zero-rate) pushgateway push failed");
         }
         if (!cfg.pushgateway_keep) {
             push->Finish(job_id);
         } else {
-            READGEN_LOG_ERR("pushgateway: keeping idle group job=%s instance=%s",
+            XRDHOVER_LOG_ERR("pushgateway: keeping idle group job=%s instance=%s",
                          cfg.pushgateway_job.c_str(), job_id.c_str());
         }
     }
@@ -452,15 +452,15 @@ int RunRunCommand(const RunConfig& cfg_in) {
     try {
         ResolveRunConfig(cfg);
     } catch (const std::exception& e) {
-        READGEN_LOG_ERR("error: %s", e.what());
+        XRDHOVER_LOG_ERR("error: %s", e.what());
         return 2;
     }
     if (cfg.endpoint.empty()) {
-        READGEN_LOG_ERR("error: --endpoint is required");
+        XRDHOVER_LOG_ERR("error: --endpoint is required");
         return 2;
     }
     if (cfg.files.empty()) {
-        READGEN_LOG_ERR("error: filelist is empty");
+        XRDHOVER_LOG_ERR("error: filelist is empty");
         return 2;
     }
     if (cfg.dry_run) {
@@ -468,11 +468,11 @@ int RunRunCommand(const RunConfig& cfg_in) {
         return 0;
     }
     if (cfg.max_bytes_auto) {
-        READGEN_LOG_ERR("max_bytes auto → %s (rate/max_inflight × %.0fs, capped at %s)",
+        XRDHOVER_LOG_ERR("max_bytes auto → %s (rate/max_inflight × %.0fs, capped at %s)",
                         FormatBytes(cfg.max_bytes).c_str(), kAutoMaxAmortizeSec,
                         FormatBytes(kAutoMaxHardCapBytes).c_str());
     }
     return RunEngine(cfg);
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

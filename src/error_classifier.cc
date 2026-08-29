@@ -1,9 +1,9 @@
-#include "readgen/error_classifier.hh"
+#include "xrdhover/error_classifier.hh"
 
 #include <cctype>
 #include <string>
 
-namespace readgen {
+namespace xrdhover {
 namespace {
 
 std::string Lower(std::string s) {
@@ -104,4 +104,4 @@ ErrorClass ClassifyXRootDError(int status_code, int err_code, const std::string&
     return ErrorClass::None;
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

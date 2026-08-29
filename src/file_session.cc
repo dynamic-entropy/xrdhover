@@ -1,5 +1,5 @@
-#include "readgen/file_session.hh"
-#include "readgen/random_io.hh"
+#include "xrdhover/file_session.hh"
+#include "xrdhover/random_io.hh"
 
 #include <XrdCl/XrdClFile.hh>
 #include <XrdCl/XrdClXRootDResponses.hh>
@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-namespace readgen {
+namespace xrdhover {
 namespace {
 
 using Clock = std::chrono::steady_clock;
@@ -628,4 +628,4 @@ void StartFileSession(const FileSessionOptions& opts, FileSessionDone on_done) {
 
 void ShutdownSessionWatchdog() { SessionDeadlineWatchdog::Instance().ShutDown(); }
 
-}  // namespace readgen
+}  // namespace xrdhover

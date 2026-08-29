@@ -1,6 +1,6 @@
-#include "readgen/report_command.hh"
+#include "xrdhover/report_command.hh"
 
-#include "readgen/units.hh"
+#include "xrdhover/units.hh"
 
 #include <nlohmann/json.hpp>
 
@@ -9,7 +9,6 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
-#include <regex>
 #include <set>
 #include <stdexcept>
 #include <system_error>
@@ -17,7 +16,7 @@
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
-namespace readgen {
+namespace xrdhover {
 namespace {
 
 uint64_t JsonU64(const json& j, const char* key) {
@@ -59,43 +58,6 @@ void MergeBucket(AttributionBucket& dst, const json& entry) {
     if (dst.cms_site.empty()) dst.cms_site = JsonString(entry, "cms_site");
 }
 
-bool IsInstanceDirName(const std::string& name) {
-    static const std::regex kInst("^i[0-9]+$", std::regex::optimize);
-    return std::regex_match(name, kInst);
-}
-
-std::vector<std::string> FindFleetResults(const fs::path& results_root, const std::string& run_id) {
-    std::vector<std::pair<int, std::string>> numbered;
-    std::error_code ec;
-    if (!fs::is_directory(results_root, ec)) return {};
-
-    for (const auto& ent : fs::directory_iterator(results_root, ec)) {
-        if (ec || !ent.is_directory()) continue;
-        const std::string name = ent.path().filename().string();
-        if (!IsInstanceDirName(name)) continue;
-        const fs::path result = ent.path() / run_id / "result.json";
-        if (!fs::is_regular_file(result, ec)) continue;
-        int idx = 0;
-        try {
-            idx = std::stoi(name.substr(1));
-        } catch (...) {
-            idx = 0;
-        }
-        numbered.emplace_back(idx, result.string());
-    }
-    std::sort(numbered.begin(), numbered.end(),
-              [](const auto& a, const auto& b) { return a.first < b.first; });
-    std::vector<std::string> out;
-    out.reserve(numbered.size());
-    for (const auto& kv : numbered) out.push_back(kv.second);
-    return out;
-}
-
-std::string RequireRunId(const ReportOptions& opts, const char* why) {
-    if (!opts.run_id.empty()) return opts.run_id;
-    throw std::runtime_error(std::string(why) + " (pass --run-id)");
-}
-
 void PrintBucketTable(const char* title, const std::map<std::string, AttributionBucket>& m,
                       bool show_cms_site) {
     if (m.empty()) return;
@@ -130,24 +92,22 @@ json SummaryToJson(const ReportSummary& s) {
     json by_site = json::object();
     for (const auto& kv : s.by_cms_site) by_site[kv.first] = BucketToJson(kv.second, false);
 
-    json j = {{"run_id", s.run_id},
-              {"fleet", s.fleet},
-              {"sources", s.sources},
-              {"job_ids", s.job_ids},
-              {"endpoint", s.endpoint},
-              {"target", s.target},
-              {"elapsed_s", s.elapsed_s},
-              {"bytes_read", s.bytes_read},
-              {"sessions_ok", s.sessions_ok},
-              {"sessions_fail", s.sessions_fail},
-              {"ops", s.ops},
-              {"achieved_bytes_per_s", achieved},
-              {"achieved_bits_per_s", achieved * 8.0},
-              {"errors", s.errors},
-              {"soft_faults", s.soft_faults},
-              {"by_data_server", std::move(by_ds)},
-              {"by_cms_site", std::move(by_site)}};
-    return j;
+    return {{"run_id", s.run_id},
+            {"sources", s.sources},
+            {"job_ids", s.job_ids},
+            {"endpoint", s.endpoint},
+            {"target", s.target},
+            {"elapsed_s", s.elapsed_s},
+            {"bytes_read", s.bytes_read},
+            {"sessions_ok", s.sessions_ok},
+            {"sessions_fail", s.sessions_fail},
+            {"ops", s.ops},
+            {"achieved_bytes_per_s", achieved},
+            {"achieved_bits_per_s", achieved * 8.0},
+            {"errors", s.errors},
+            {"soft_faults", s.soft_faults},
+            {"by_data_server", std::move(by_ds)},
+            {"by_cms_site", std::move(by_site)}};
 }
 
 void PrintHuman(const ReportSummary& s) {
@@ -155,7 +115,7 @@ void PrintHuman(const ReportSummary& s) {
         s.elapsed_s > 0.0 ? static_cast<double>(s.bytes_read) / s.elapsed_s : 0.0;
 
     std::printf("=== report ===\n");
-    std::printf("run_id:         %s%s\n", s.run_id.c_str(), s.fleet ? "  (fleet)" : "");
+    std::printf("run_id:         %s\n", s.run_id.c_str());
     if (s.job_ids.size() == 1) {
         std::printf("job_id:         %s\n", s.job_ids.front().c_str());
     } else if (!s.job_ids.empty()) {
@@ -164,20 +124,14 @@ void PrintHuman(const ReportSummary& s) {
     }
     if (!s.endpoint.empty()) std::printf("endpoint:       %s\n", s.endpoint.c_str());
     if (!s.target.empty()) std::printf("target:         %s\n", s.target.c_str());
-    std::printf("contributors:   %zu\n", s.sources.size());
-    if (s.fleet) {
-        for (const auto& p : s.sources) std::printf("  %s\n", p.c_str());
-    } else if (!s.sources.empty()) {
-        std::printf("results:        %s\n", s.sources.front().c_str());
-    }
-    std::printf("elapsed:        %s (max wall)\n", FormatDuration(s.elapsed_s).c_str());
+    if (!s.sources.empty()) std::printf("results:        %s\n", s.sources.front().c_str());
+    std::printf("elapsed:        %s\n", FormatDuration(s.elapsed_s).c_str());
     std::printf("sessions:       %" PRIu64 " ok / %" PRIu64 " fail\n", s.sessions_ok,
                 s.sessions_fail);
     std::printf("bytes:          %s (%" PRIu64 ")\n", FormatBytes(s.bytes_read).c_str(),
                 s.bytes_read);
     std::printf("ops:            %" PRIu64 "\n", s.ops);
-    std::printf("achieved:       %s\n",
-                FormatRate(static_cast<uint64_t>(achieved)).c_str());
+    std::printf("achieved:       %s\n", FormatRate(static_cast<uint64_t>(achieved)).c_str());
     if (!s.errors.empty()) {
         std::printf("errors:\n");
         for (const auto& e : s.errors) {
@@ -194,12 +148,16 @@ void PrintHuman(const ReportSummary& s) {
     PrintBucketTable("by_data_server", s.by_data_server, true);
 }
 
+std::string RequireRunId(const ReportOptions& opts, const char* why) {
+    if (!opts.run_id.empty()) return opts.run_id;
+    throw std::runtime_error(std::string(why) + " (pass --run-id)");
+}
+
 }  // namespace
 
 std::vector<std::string> DiscoverResultFiles(const ReportOptions& opts) {
     const bool have_path = !opts.path.empty();
     const bool have_results = !opts.results_dir.empty();
-    const bool have_run_id = !opts.run_id.empty();
 
     if (!have_path && !have_results) {
         throw std::runtime_error("pass a PATH (run dir or result.json) or --results-dir");
@@ -207,18 +165,12 @@ std::vector<std::string> DiscoverResultFiles(const ReportOptions& opts) {
     if (have_path && have_results) {
         throw std::runtime_error("pass PATH or --results-dir, not both");
     }
-    if (opts.fleet && !have_run_id) {
-        throw std::runtime_error("--fleet requires --run-id");
-    }
 
     std::error_code ec;
 
     if (have_path) {
         const fs::path p = fs::path(opts.path);
         if (fs::is_regular_file(p, ec)) {
-            if (opts.fleet) {
-                throw std::runtime_error("--fleet cannot be used with a result.json path");
-            }
             if (p.filename() != "result.json") {
                 throw std::runtime_error("file PATH must be result.json");
             }
@@ -229,54 +181,22 @@ std::vector<std::string> DiscoverResultFiles(const ReportOptions& opts) {
         }
 
         const fs::path direct = p / "result.json";
-        if (fs::is_regular_file(direct, ec)) {
-            if (opts.fleet) {
-                throw std::runtime_error(
-                    "--fleet requested but PATH is a single-run directory (" + direct.string() +
-                    ")");
-            }
-            return {direct.string()};
-        }
+        if (fs::is_regular_file(direct, ec)) return {direct.string()};
 
-        // PATH is a results root: need run_id for single or fleet layout.
         const std::string run_id =
             RequireRunId(opts, "PATH has no result.json; treat as results root");
-
         const fs::path single = p / run_id / "result.json";
-        auto fleet = FindFleetResults(p, run_id);
-
-        if (opts.fleet) {
-            if (fleet.empty()) {
-                throw std::runtime_error("no fleet results at " + (p / "i*" / run_id / "result.json").string());
-            }
-            return fleet;
-        }
         if (fs::is_regular_file(single, ec)) return {single.string()};
-        if (!fleet.empty()) return fleet;
-        throw std::runtime_error("no result.json for run_id=" + run_id + " under " + p.string() +
-                                 " (tried " + single.string() + " and i*/" + run_id +
-                                 "/result.json)");
+        throw std::runtime_error("no result.json for run_id=" + run_id + " under " + p.string());
     }
 
-    // --results-dir + --run-id
     const std::string run_id = RequireRunId(opts, "--results-dir needs --run-id");
     const fs::path root = fs::path(opts.results_dir);
     if (!fs::is_directory(root, ec)) {
         throw std::runtime_error("results dir not found: " + opts.results_dir);
     }
-
     const fs::path single = root / run_id / "result.json";
-    auto fleet = FindFleetResults(root, run_id);
-
-    if (opts.fleet) {
-        if (fleet.empty()) {
-            throw std::runtime_error("no fleet results for run_id=" + run_id + " under " +
-                                     opts.results_dir);
-        }
-        return fleet;
-    }
     if (fs::is_regular_file(single, ec)) return {single.string()};
-    if (!fleet.empty()) return fleet;
     throw std::runtime_error("no result.json for run_id=" + run_id + " under " + opts.results_dir);
 }
 
@@ -284,7 +204,6 @@ ReportSummary AggregateResultFiles(const std::vector<std::string>& paths) {
     if (paths.empty()) throw std::runtime_error("no result files to aggregate");
 
     ReportSummary out;
-    out.fleet = paths.size() > 1;
     out.sources = paths;
 
     std::set<std::string> endpoints;
@@ -361,4 +280,4 @@ int RunReportCommand(const ReportOptions& opts) {
     }
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

@@ -1,4 +1,4 @@
-#include "readgen/auth_check.hh"
+#include "xrdhover/auth_check.hh"
 
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -10,7 +10,7 @@
 #include <string>
 #include <unistd.h>
 
-namespace readgen {
+namespace xrdhover {
 namespace {
 
 namespace fs = std::filesystem;
@@ -101,4 +101,4 @@ AuthCheckResult CheckX509Credentials(double required_duration_s,
     return r;
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

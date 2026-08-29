@@ -1,13 +1,13 @@
-#include "readgen/workload_run_command.hh"
+#include "xrdhover/workload_run_command.hh"
 
-#include "readgen/auth_check.hh"
-#include "readgen/run_command.hh"
-#include "readgen/workload_spec.hh"
+#include "xrdhover/auth_check.hh"
+#include "xrdhover/run_command.hh"
+#include "xrdhover/workload_spec.hh"
 
 #include <cstdio>
 #include <string>
 
-namespace readgen {
+namespace xrdhover {
 
 int RunWorkloadCommand(const WorkloadRunOptions& opts) {
     const auto validated = ValidateWorkloadFile(opts.workload_path);
@@ -79,4 +79,4 @@ int RunWorkloadCommand(const WorkloadRunOptions& opts) {
     return RunRunCommand(cfg);
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

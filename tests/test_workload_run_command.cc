@@ -1,4 +1,4 @@
-#include "readgen/workload_run_command.hh"
+#include "xrdhover/workload_run_command.hh"
 
 #include <gtest/gtest.h>
 
@@ -8,16 +8,16 @@
 #include <string>
 #include <unistd.h>
 
-using readgen::RunConfig;
-using readgen::RunWorkloadCommand;
-using readgen::WorkloadRunOptions;
+using xrdhover::RunConfig;
+using xrdhover::RunWorkloadCommand;
+using xrdhover::WorkloadRunOptions;
 namespace fs = std::filesystem;
 
 namespace {
 
 fs::path MakeWorkloadDir(bool multi_target = false) {
     const auto dir =
-        fs::temp_directory_path() / ("readgen_wlrun_" + std::to_string(::getpid()));
+        fs::temp_directory_path() / ("xrdhover_wlrun_" + std::to_string(::getpid()));
     fs::remove_all(dir);
     fs::create_directories(dir);
     {

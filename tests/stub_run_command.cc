@@ -1,10 +1,10 @@
-#include "readgen/run_command.hh"
+#include "xrdhover/run_command.hh"
 
 #include <cstdio>
 
-namespace readgen {
+namespace xrdhover {
 
-// Linked only into xrd-readgen-tests so workload_run_command.cc resolves
+// Linked only into xrdhover-tests so workload_run_command.cc resolves
 // RunRunCommand without pulling the full engine. Production tests always set
 // WorkloadRunOptions::run_hook and should never reach this stub.
 int RunRunCommand(const RunConfig&) {
@@ -12,4 +12,4 @@ int RunRunCommand(const RunConfig&) {
     return 99;
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

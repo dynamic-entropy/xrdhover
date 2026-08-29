@@ -1,4 +1,4 @@
-#include "readgen/sitename_resolver.hh"
+#include "xrdhover/sitename_resolver.hh"
 
 #include <XrdCl/XrdClBuffer.hh>
 #include <XrdCl/XrdClFileSystem.hh>
@@ -6,7 +6,7 @@
 
 #include <cctype>
 
-namespace readgen {
+namespace xrdhover {
 
 std::string NormalizeSitename(std::string raw) {
     while (!raw.empty() && (raw.back() == '\0' || std::isspace(static_cast<unsigned char>(raw.back())))) {
@@ -73,4 +73,4 @@ size_t SitenameResolver::cache_size() const {
     return cache_.size();
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

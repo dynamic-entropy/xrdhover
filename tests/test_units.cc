@@ -1,16 +1,16 @@
-#include "readgen/units.hh"
+#include "xrdhover/units.hh"
 
 #include <stdexcept>
 
 #include <gtest/gtest.h>
 
-using readgen::FormatBytes;
-using readgen::FormatRate;
-using readgen::IsUncappedRateToken;
-using readgen::ParseDurationString;
-using readgen::ParseRateString;
-using readgen::ParseSizeString;
-using readgen::ParseTargetRateString;
+using xrdhover::FormatBytes;
+using xrdhover::FormatRate;
+using xrdhover::IsUncappedRateToken;
+using xrdhover::ParseDurationString;
+using xrdhover::ParseRateString;
+using xrdhover::ParseSizeString;
+using xrdhover::ParseTargetRateString;
 
 TEST(Units, Duration) {
     EXPECT_DOUBLE_EQ(ParseDurationString("30"), 30.0);

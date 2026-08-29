@@ -1,4 +1,4 @@
-#include "readgen/metrics.hh"
+#include "xrdhover/metrics.hh"
 
 #include <gtest/gtest.h>
 
@@ -6,11 +6,11 @@
 #include <thread>
 #include <vector>
 
-using readgen::ErrorClass;
-using readgen::Histogram;
-using readgen::HistogramPercentile;
-using readgen::MetricsRegistry;
-using readgen::SampleProcess;
+using xrdhover::ErrorClass;
+using xrdhover::Histogram;
+using xrdhover::HistogramPercentile;
+using xrdhover::MetricsRegistry;
+using xrdhover::SampleProcess;
 
 TEST(Histogram, ObserveAndCount) {
     Histogram h;
@@ -19,7 +19,7 @@ TEST(Histogram, ObserveAndCount) {
     h.Observe(100.0);  // +Inf bucket
     auto s = h.Snapshot();
     EXPECT_EQ(s.count, 3u);
-    EXPECT_EQ(s.counts.size(), readgen::kHistogramBuckets);
+    EXPECT_EQ(s.counts.size(), xrdhover::kHistogramBuckets);
     EXPECT_GT(s.sum, 100.0);
     uint64_t total = 0;
     for (auto c : s.counts) total += c;
@@ -79,7 +79,7 @@ TEST(MetricsRegistry, SessionOkAndFail) {
 }
 
 TEST(MetricsRegistry, AttributionWithSiteMap) {
-    readgen::SiteMap map;
+    xrdhover::SiteMap map;
     map.Add("ds-a.example.org", "T2_AA");
     map.Add("ds-b.example.org", "T2_BB");
 
@@ -110,8 +110,8 @@ TEST(MetricsRegistry, EmptyDataServerUsesUnknown) {
     MetricsRegistry r;
     r.ObserveSessionFail(ErrorClass::NotFound, "");
     auto s = r.Snapshot(1.0);
-    ASSERT_TRUE(s.by_data_server.count(readgen::kUnknownDataServer));
-    EXPECT_EQ(s.by_data_server.at(readgen::kUnknownDataServer).sessions_fail, 1u);
+    ASSERT_TRUE(s.by_data_server.count(xrdhover::kUnknownDataServer));
+    EXPECT_EQ(s.by_data_server.at(xrdhover::kUnknownDataServer).sessions_fail, 1u);
 }
 
 TEST(ProcessSample, ProcSelfAvailable) {

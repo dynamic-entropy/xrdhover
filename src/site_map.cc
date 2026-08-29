@@ -1,4 +1,4 @@
-#include "readgen/site_map.hh"
+#include "xrdhover/site_map.hh"
 
 #include <nlohmann/json.hpp>
 
@@ -6,7 +6,7 @@
 #include <fstream>
 #include <stdexcept>
 
-namespace readgen {
+namespace xrdhover {
 namespace {
 
 using json = nlohmann::json;
@@ -100,4 +100,4 @@ SiteMap SiteMap::LoadFile(const std::string& path) {
     return map;
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

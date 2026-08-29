@@ -1,0 +1,38 @@
+name: test
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    container: almalinux:10
+    steps:
+      - name: Install dependencies
+        run: |
+          dnf -y install epel-release
+          dnf -y install 'dnf-command(config-manager)'
+          dnf config-manager --set-enabled crb
+          dnf config-manager --add-repo https://xrootd.web.cern.ch/xrootd.repo
+          dnf -y install \
+            cmake \
+            gcc-c++ \
+            git \
+            libcurl-devel \
+            make \
+            openssl-devel \
+            xrootd-client-devel
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure

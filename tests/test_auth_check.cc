@@ -1,4 +1,4 @@
-#include "readgen/auth_check.hh"
+#include "xrdhover/auth_check.hh"
 
 #include <gtest/gtest.h>
 
@@ -13,14 +13,14 @@
 #include <string>
 #include <unistd.h>
 
-using readgen::CheckX509Credentials;
-using readgen::kCredentialSafetyMarginSec;
+using xrdhover::CheckX509Credentials;
+using xrdhover::kCredentialSafetyMarginSec;
 namespace fs = std::filesystem;
 
 namespace {
 
 fs::path TempDir() {
-    const auto dir = fs::temp_directory_path() / ("readgen_auth_" + std::to_string(::getpid()));
+    const auto dir = fs::temp_directory_path() / ("xrdhover_auth_" + std::to_string(::getpid()));
     fs::create_directories(dir);
     return dir;
 }
@@ -47,7 +47,7 @@ bool WriteSelfSignedPem(const fs::path& path, long not_before_offset_s, long lif
     X509_set_pubkey(cert, pkey);
     X509_NAME* name = X509_get_subject_name(cert);
     X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
-                               reinterpret_cast<const unsigned char*>("readgen-test"), -1, -1, 0);
+                               reinterpret_cast<const unsigned char*>("xrdhover-test"), -1, -1, 0);
     X509_set_issuer_name(cert, name);
     X509_sign(cert, pkey, EVP_sha256());
 
@@ -68,7 +68,7 @@ bool WriteSelfSignedPem(const fs::path& path, long not_before_offset_s, long lif
     return true;
 }
 
-bool MessagesContainSecret(const readgen::AuthCheckResult& r, const std::string& pem_snippet) {
+bool MessagesContainSecret(const xrdhover::AuthCheckResult& r, const std::string& pem_snippet) {
     for (const auto& i : r.issues) {
         if (i.message.find(pem_snippet) != std::string::npos) return true;
         if (i.message.find("BEGIN CERTIFICATE") != std::string::npos) return true;

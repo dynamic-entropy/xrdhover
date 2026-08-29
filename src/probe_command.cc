@@ -1,11 +1,11 @@
-#include "readgen/probe_command.hh"
+#include "xrdhover/probe_command.hh"
 
-#include "readgen/auth_check.hh"
-#include "readgen/error_classifier.hh"
-#include "readgen/inflight.hh"
-#include "readgen/run_config.hh"
-#include "readgen/workload_spec.hh"
-#include "readgen/xrdcl_env.hh"
+#include "xrdhover/auth_check.hh"
+#include "xrdhover/error_classifier.hh"
+#include "xrdhover/inflight.hh"
+#include "xrdhover/run_config.hh"
+#include "xrdhover/workload_spec.hh"
+#include "xrdhover/xrdcl_env.hh"
 
 #include <nlohmann/json.hpp>
 
@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-namespace readgen {
+namespace xrdhover {
 namespace {
 
 using json = nlohmann::json;
@@ -251,4 +251,4 @@ int RunProbeCommand(const ProbeOptions& opts) {
     return fail_n == 0 ? 0 : 1;
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

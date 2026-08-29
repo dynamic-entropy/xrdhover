@@ -34,7 +34,7 @@
     "write_results": true,
     "pushgateway": {
       "url": "",
-      "job": "xrd-readgen",
+      "job": "xrdhover",
       "keep": false
     }
   }

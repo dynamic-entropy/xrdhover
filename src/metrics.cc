@@ -1,4 +1,4 @@
-#include "readgen/metrics.hh"
+#include "xrdhover/metrics.hh"
 
 #include <algorithm>
 #include <cmath>
@@ -6,7 +6,7 @@
 #include <fstream>
 #include <unistd.h>
 
-namespace readgen {
+namespace xrdhover {
 namespace {
 
 size_t BucketIndex(double value) {
@@ -261,4 +261,4 @@ MetricsSnapshot MetricsRegistry::Snapshot(double wall_s) {
     return s;
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

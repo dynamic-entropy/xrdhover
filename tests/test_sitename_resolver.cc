@@ -1,12 +1,12 @@
-#include "readgen/sitename_resolver.hh"
+#include "xrdhover/sitename_resolver.hh"
 
 #include <gtest/gtest.h>
 
 #include <atomic>
 #include <string>
 
-using readgen::NormalizeSitename;
-using readgen::SitenameResolver;
+using xrdhover::NormalizeSitename;
+using xrdhover::SitenameResolver;
 
 TEST(NormalizeSitename, TrimsWhitespaceAndNuls) {
     EXPECT_EQ(NormalizeSitename("US_CMS_T1_DCACHE_DISK\n"), "US_CMS_T1_DCACHE_DISK");

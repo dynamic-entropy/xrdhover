@@ -1,10 +1,10 @@
-#include "readgen/run_config.hh"
+#include "xrdhover/run_config.hh"
 
 #include <algorithm>
 #include <fstream>
 #include <stdexcept>
 
-namespace readgen {
+namespace xrdhover {
 
 const char* PatternTypeName(PatternType t) {
     switch (t) {
@@ -116,4 +116,4 @@ std::vector<std::string> LoadFileList(const std::string& path) {
     return files;
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

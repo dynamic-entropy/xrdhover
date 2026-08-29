@@ -1,4 +1,4 @@
-#include "readgen/site_map.hh"
+#include "xrdhover/site_map.hh"
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
@@ -7,14 +7,14 @@
 #include <fstream>
 #include <unistd.h>
 
-using readgen::HostnameOnly;
-using readgen::SiteMap;
+using xrdhover::HostnameOnly;
+using xrdhover::SiteMap;
 namespace fs = std::filesystem;
 
 class SiteMapTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        dir_ = fs::temp_directory_path() / ("readgen_sitemap_" + std::to_string(::getpid()));
+        dir_ = fs::temp_directory_path() / ("xrdhover_sitemap_" + std::to_string(::getpid()));
         fs::remove_all(dir_);
         fs::create_directories(dir_);
     }

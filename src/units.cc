@@ -1,4 +1,4 @@
-#include "readgen/units.hh"
+#include "xrdhover/units.hh"
 
 #include <cinttypes>
 #include <cctype>
@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace readgen {
+namespace xrdhover {
 namespace {
 
 bool ParseNumberSuffix(const std::string& s, double& value, std::string& unit) {
@@ -193,4 +193,4 @@ std::string FormatDuration(double seconds) {
     return buf;
 }
 
-}  // namespace readgen
+}  // namespace xrdhover

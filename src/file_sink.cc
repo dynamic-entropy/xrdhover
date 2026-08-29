@@ -1,4 +1,4 @@
-#include "readgen/file_sink.hh"
+#include "xrdhover/file_sink.hh"
 
 #include <nlohmann/json.hpp>
 
@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <system_error>
 
-namespace readgen {
+namespace xrdhover {
 namespace {
 
 namespace fs = std::filesystem;
@@ -37,22 +37,22 @@ json SnapshotToJsonl(const MetricsSnapshot& s) {
     j["target"] = s.target;
     j["endpoint"] = s.endpoint;
     j["wall_s"] = s.wall_s;
-    j["readgen_bytes_read_total"] = s.bytes_read_total;
-    j["readgen_sessions_total"] = {{"ok", s.sessions_ok}, {"fail", s.sessions_fail}};
-    j["readgen_read_ops_total"] = s.read_ops_total;
-    j["readgen_target_rate_bytes"] = s.target_rate_bytes;
-    j["readgen_achieved_rate_bytes"] = s.achieved_rate_bytes;
-    j["readgen_open_seconds"] = HistogramToJson(s.open_seconds);
-    j["readgen_ttfb_seconds"] = HistogramToJson(s.ttfb_seconds);
-    j["readgen_read_seconds"] = HistogramToJson(s.read_seconds);
-    j["readgen_redirects_per_open"] = HistogramToJson(s.redirects_per_open);
-    j["readgen_errors_total"] = s.errors_by_class;
-    j["readgen_soft_faults_total"] = s.soft_faults_by_kind;
-    j["readgen_inflight_reads"] = s.inflight_reads;
-    j["readgen_peak_inflight"] = s.peak_inflight;
-    j["readgen_max_inflight"] = s.max_inflight;
-    j["readgen_cpu_seconds_total"] = s.cpu_seconds_total;
-    j["readgen_process_resident_memory_bytes"] = s.process_resident_memory_bytes;
+    j["xrdhover_bytes_read_total"] = s.bytes_read_total;
+    j["xrdhover_sessions_total"] = {{"ok", s.sessions_ok}, {"fail", s.sessions_fail}};
+    j["xrdhover_read_ops_total"] = s.read_ops_total;
+    j["xrdhover_target_rate_bytes"] = s.target_rate_bytes;
+    j["xrdhover_achieved_rate_bytes"] = s.achieved_rate_bytes;
+    j["xrdhover_open_seconds"] = HistogramToJson(s.open_seconds);
+    j["xrdhover_ttfb_seconds"] = HistogramToJson(s.ttfb_seconds);
+    j["xrdhover_read_seconds"] = HistogramToJson(s.read_seconds);
+    j["xrdhover_redirects_per_open"] = HistogramToJson(s.redirects_per_open);
+    j["xrdhover_errors_total"] = s.errors_by_class;
+    j["xrdhover_soft_faults_total"] = s.soft_faults_by_kind;
+    j["xrdhover_inflight_reads"] = s.inflight_reads;
+    j["xrdhover_peak_inflight"] = s.peak_inflight;
+    j["xrdhover_max_inflight"] = s.max_inflight;
+    j["xrdhover_cpu_seconds_total"] = s.cpu_seconds_total;
+    j["xrdhover_process_resident_memory_bytes"] = s.process_resident_memory_bytes;
     if (!s.by_data_server.empty()) {
         json by_ds = json::object();
         for (const auto& kv : s.by_data_server) {
@@ -158,9 +158,9 @@ void FileSink::WriteResult(const MetricsSnapshot& snap, double cpu_seconds_at_st
                     {"ttfb_seconds", LatencyPercentiles(snap.ttfb_seconds)},
                     {"read_seconds", LatencyPercentiles(snap.read_seconds)},
                     {"redirects_per_open", LatencyPercentiles(snap.redirects_per_open)}};
-    j["readgen_cpu_seconds_total"] = snap.cpu_seconds_total;
-    j["readgen_process_resident_memory_bytes"] = snap.process_resident_memory_bytes;
-    j["readgen_bytes_per_cpu_second"] = bytes_per_cpu;
+    j["xrdhover_cpu_seconds_total"] = snap.cpu_seconds_total;
+    j["xrdhover_process_resident_memory_bytes"] = snap.process_resident_memory_bytes;
+    j["xrdhover_bytes_per_cpu_second"] = bytes_per_cpu;
     j["run_info"] = {{"version", meta_.version},
                      {"arch", meta_.arch},
                      {"xrdcl_version", meta_.xrdcl_version},
@@ -201,4 +201,4 @@ void FileSink::WriteResult(const MetricsSnapshot& snap, double cpu_seconds_at_st
     out << j.dump(2) << '\n';
 }
 
-}  // namespace readgen
+}  // namespace xrdhover
