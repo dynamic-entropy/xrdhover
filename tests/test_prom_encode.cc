@@ -30,7 +30,7 @@ TEST(PromEncode, ContainsCoreSeriesAndHistogramBuckets) {
 
     const std::string text = EncodePrometheusText(snap2);
     EXPECT_NE(text.find("xrdhover_bytes_read_total{"), std::string::npos);
-    EXPECT_NE(text.find("run_id=\"run-a\""), std::string::npos);
+    EXPECT_NE(text.find("src_dst=\"run-a\""), std::string::npos);
     EXPECT_NE(text.find("job_id=\"host1\""), std::string::npos);
     EXPECT_NE(text.find("xrdhover_sessions_total{"), std::string::npos);
     EXPECT_NE(text.find("result=\"ok\""), std::string::npos);
@@ -48,6 +48,15 @@ TEST(PromEncode, ContainsCoreSeriesAndHistogramBuckets) {
     EXPECT_NE(text.find("data_server=\"srv-a:1094\""), std::string::npos);
     EXPECT_NE(text.find("data_server=\"srv-b:1094\""), std::string::npos);
     EXPECT_NE(text.find("xrdhover_endpoint_sessions_total{"), std::string::npos);
+}
+
+TEST(PromEncode, SourceDestFromRunId) {
+    MetricsRegistry reg;
+    reg.SetLabels("T2_CH_CERN__T1_DE_KIT", "T2_CH_CERN__T1_DE_KIT", "T2_CH_CERN__T1_DE_KIT",
+                  "root://eoscms.cern.ch:1094/");
+    const std::string text = EncodePrometheusText(reg.Snapshot(1.0));
+    EXPECT_NE(text.find("source=\"T2_CH_CERN\""), std::string::npos);
+    EXPECT_NE(text.find("dest=\"T1_DE_KIT\""), std::string::npos);
 }
 
 TEST(PromEncode, AllMetricNamesUseXrdhoverPrefix) {

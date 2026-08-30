@@ -26,12 +26,24 @@ std::string EscapeLabel(const std::string& s) {
     return out;
 }
 
+void AppendSourceDest(std::ostringstream& o, const std::string& run_id) {
+    std::string source;
+    std::string dest;
+    const auto pos = run_id.find("__");
+    if (pos != std::string::npos) {
+        source = run_id.substr(0, pos);
+        dest = run_id.substr(pos + 2);
+    }
+    o << ",source=\"" << EscapeLabel(source) << "\",dest=\"" << EscapeLabel(dest) << "\"";
+}
+
 std::string CommonLabels(const MetricsSnapshot& s) {
     std::ostringstream o;
-    o << "run_id=\"" << EscapeLabel(s.run_id) << "\","
+    o << "src_dst=\"" << EscapeLabel(s.run_id) << "\","
       << "job_id=\"" << EscapeLabel(s.job_id) << "\","
       << "target=\"" << EscapeLabel(s.target) << "\","
       << "endpoint=\"" << EscapeLabel(s.endpoint) << "\"";
+    AppendSourceDest(o, s.run_id);
     return o.str();
 }
 

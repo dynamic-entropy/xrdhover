@@ -10,7 +10,7 @@
 namespace xrdhover {
 
 // Pushes Prometheus text to a Pushgateway.
-// Grouping key: job=<push_job>, instance=<job_id from snapshot>.
+// Grouping key: job=<push_job>, src_dst=<run_id / SOURCE__DEST>.
 // Deletes the grouping key on Finish() (clean exit).
 //
 // Reuses one libcurl easy handle across Push/Finish so TCP/TLS connections
@@ -28,12 +28,12 @@ public:
     bool Push(const MetricsSnapshot& snap);
 
     // DELETE the grouping key. Safe to call multiple times.
-    void Finish(const std::string& instance);
+    void Finish(const std::string& src_dst);
 
     const std::string& base_url() const { return base_url_; }
 
 private:
-    std::string GroupUrl(const std::string& instance);
+    std::string GroupUrl(const std::string& src_dst);
     bool HttpRequest(const char* method, const std::string& url, const std::string& body,
                      long* http_code_out);
     std::string UrlEncode(const std::string& s);
@@ -41,7 +41,7 @@ private:
     std::string base_url_;
     std::string push_job_;
     std::string encoded_job_;
-    std::string last_instance_;
+    std::string last_src_dst_;
     std::string cached_group_url_;
     bool finished_ = false;
 
