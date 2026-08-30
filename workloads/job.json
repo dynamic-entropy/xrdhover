@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "run_id": "premix-2026-08-28/T2_CH_CERN__T1_DE_KIT",
+  "run_id": "T2_CH_CERN__T1_DE_KIT",
   "duration": "2h",
   "seed": 1,
   "auth": {
@@ -15,8 +15,8 @@
       "max_inflight": 16,
       "pattern": {
         "type": "sequential",
-        "read_size": "1MiB",
-        "max_bytes": "16GiB"
+        "read_size": "8MB",
+        "max_bytes": "32MB"
       }
     }
   ],
@@ -29,7 +29,7 @@
   "sinks": {
     "results_dir": "results",
     "snapshot_interval": "15s",
-    "job_id": "example.0",
+    "job_id": "T2_CH_CERN__T1_DE_KIT",
     "write_results": true,
     "pushgateway": {
       "url": "http://127.0.0.1:9091",

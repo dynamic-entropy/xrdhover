@@ -180,8 +180,8 @@ int RunEngine(const RunConfig& cfg) {
             XRDHOVER_LOG_ERR("error: %s", e.what());
             return 2;
         }
-        XRDHOVER_LOG_ERR("pushgateway: %s (job=%s instance=%s)", cfg.pushgateway_url.c_str(),
-                     cfg.pushgateway_job.c_str(), job_id.c_str());
+        XRDHOVER_LOG_ERR("pushgateway: %s (job=%s src_dst=%s)", cfg.pushgateway_url.c_str(),
+                     cfg.pushgateway_job.c_str(), cfg.run_id.c_str());
     }
     if (sink || push) {
         registry.SampleProc();
@@ -364,10 +364,10 @@ int RunEngine(const RunConfig& cfg) {
             XRDHOVER_LOG_ERR("warning: idle (zero-rate) pushgateway push failed");
         }
         if (!cfg.pushgateway_keep) {
-            push->Finish(job_id);
+            push->Finish(cfg.run_id);
         } else {
-            XRDHOVER_LOG_ERR("pushgateway: keeping idle group job=%s instance=%s",
-                         cfg.pushgateway_job.c_str(), job_id.c_str());
+            XRDHOVER_LOG_ERR("pushgateway: keeping idle group job=%s src_dst=%s",
+                         cfg.pushgateway_job.c_str(), cfg.run_id.c_str());
         }
     }
 

@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "xrdhover D1 \u2014 Challenge Overview: achieved vs target, errors, inflight, latency, plus federation attribution (achieved rate and FileSessions by CMS site / DataServer).",
+  "description": "xrdhover D1 \u2014 Challenge Overview: achieved throughput by source\u2013dest, errors, inflight, latency, plus federation attribution (achieved rate and FileSessions by CMS site / DataServer).",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -40,7 +40,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Achieved vs target (bits/s; Prom gauges are bytes/s \u00d7 8). Query A: per-instance stacked areas (stack group stack1). Query C: fleet sum as an unstacked line (stacking Off / group total) so it rides the stack top without double-counting. Target (B) is dashed when > 0.",
+      "description": "Achieved rate (bits/s; Prom gauges are bytes/s \u00d7 8). Query A: one series per source\u2013dest (`sum by (source, dest, src_dst)`), scoped by the source / dest / src_dst filters. Query C: sum of that same selection.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -93,50 +93,6 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "yellow"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "custom.stacking",
-                "value": {
-                  "group": "target",
-                  "mode": "none"
-                }
-              },
-              {
-                "id": "custom.drawStyle",
-                "value": "line"
-              },
-              {
-                "id": "custom.fillOpacity",
-                "value": 0
-              },
-              {
-                "id": "custom.lineWidth",
-                "value": 2
-              },
-              {
-                "id": "custom.lineStyle",
-                "value": {
-                  "dash": [
-                    10,
-                    10
-                  ],
-                  "fill": "dash"
-                }
-              },
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "orange",
-                  "mode": "fixed"
                 }
               }
             ]
@@ -205,8 +161,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum by (run_id, target, instance) (xrdhover_achieved_rate_bytes{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"})) * 8",
-          "legendFormat": "{{instance}}",
+          "expr": "(sum by (source, dest, src_dst) (xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"})) * 8",
+          "legendFormat": "{{src_dst}}",
           "refId": "A"
         },
         {
@@ -214,21 +170,12 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "((sum by (run_id, target, instance) (xrdhover_target_rate_bytes{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"})) * 8) > 0",
-          "legendFormat": "target",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "(sum(xrdhover_achieved_rate_bytes{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"})) * 8",
+          "expr": "(sum(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"})) * 8",
           "legendFormat": "Total",
           "refId": "C"
         }
       ],
-      "title": "Achieved vs target throughput",
+      "title": "Achieved throughput",
       "type": "timeseries"
     },
     {
@@ -287,7 +234,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum(xrdhover_achieved_rate_bytes{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"}) * 8) or vector(0)",
+          "expr": "(sum(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}) * 8) or vector(0)",
           "refId": "A"
         }
       ],
@@ -341,7 +288,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum(xrdhover_target_rate_bytes{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"})) * 8",
+          "expr": "(sum(xrdhover_target_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"})) * 8",
           "refId": "A"
         }
       ],
@@ -405,7 +352,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(xrdhover_sessions_total{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\", result=\"ok\"}[5m])) / clamp_min(sum(rate(xrdhover_sessions_total{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"}[5m])), 1e-9)",
+          "expr": "sum(rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\", result=\"ok\"}[5m])) / clamp_min(sum(rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])), 1e-9)",
           "refId": "A"
         }
       ],
@@ -473,8 +420,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (instance, run_id) (xrdhover_inflight_reads{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"})",
-          "legendFormat": "inflight {{instance}}",
+          "expr": "sum by (source, dest, src_dst) (xrdhover_inflight_reads{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"})",
+          "legendFormat": "inflight {{src_dst}}",
           "refId": "A"
         },
         {
@@ -482,8 +429,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (instance, run_id) (xrdhover_max_inflight{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"})",
-          "legendFormat": "max_inflight {{instance}}",
+          "expr": "sum by (source, dest, src_dst) (xrdhover_max_inflight{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"})",
+          "legendFormat": "max_inflight {{src_dst}}",
           "refId": "B"
         },
         {
@@ -491,8 +438,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (instance, run_id) (xrdhover_peak_inflight{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"})",
-          "legendFormat": "peak {{instance}}",
+          "expr": "sum by (source, dest, src_dst) (xrdhover_peak_inflight{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"})",
+          "legendFormat": "peak {{src_dst}}",
           "refId": "C"
         }
       ],
@@ -551,8 +498,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (class) (rate(xrdhover_errors_total{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"}[5m]))",
-          "legendFormat": "{{class}}",
+          "expr": "sum by (source, dest, src_dst, class) (rate(xrdhover_errors_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]))",
+          "legendFormat": "{{src_dst}} {{class}}",
           "refId": "A"
         }
       ],
@@ -611,8 +558,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (kind) (rate(xrdhover_soft_faults_total{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"}[5m]))",
-          "legendFormat": "{{kind}}",
+          "expr": "sum by (source, dest, src_dst, kind) (rate(xrdhover_soft_faults_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]))",
+          "legendFormat": "{{src_dst}} {{kind}}",
           "refId": "A"
         }
       ],
@@ -684,8 +631,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(xrdhover_open_seconds_bucket{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"}[5m])))",
-          "legendFormat": "open p50",
+          "expr": "histogram_quantile(0.50, sum by (le, source, dest, src_dst) (rate(xrdhover_open_seconds_bucket{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])))",
+          "legendFormat": "{{src_dst}} open p50",
           "refId": "A"
         },
         {
@@ -693,8 +640,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(xrdhover_open_seconds_bucket{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"}[5m])))",
-          "legendFormat": "open p95",
+          "expr": "histogram_quantile(0.95, sum by (le, source, dest, src_dst) (rate(xrdhover_open_seconds_bucket{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])))",
+          "legendFormat": "{{src_dst}} open p95",
           "refId": "B"
         },
         {
@@ -702,8 +649,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(xrdhover_ttfb_seconds_bucket{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"}[5m])))",
-          "legendFormat": "ttfb p50",
+          "expr": "histogram_quantile(0.50, sum by (le, source, dest, src_dst) (rate(xrdhover_ttfb_seconds_bucket{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])))",
+          "legendFormat": "{{src_dst}} ttfb p50",
           "refId": "C"
         },
         {
@@ -711,8 +658,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(xrdhover_ttfb_seconds_bucket{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"}[5m])))",
-          "legendFormat": "ttfb p95",
+          "expr": "histogram_quantile(0.95, sum by (le, source, dest, src_dst) (rate(xrdhover_ttfb_seconds_bucket{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])))",
+          "legendFormat": "{{src_dst}} ttfb p95",
           "refId": "D"
         }
       ],
@@ -768,8 +715,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(xrdhover_bytes_read_total{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"}[5m])) / clamp_min(sum(rate(xrdhover_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"}[5m])), 1e-9)",
-          "legendFormat": "bytes / CPU-sec",
+          "expr": "sum by (source, dest, src_dst) (rate(xrdhover_bytes_read_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])) / clamp_min(sum by (source, dest, src_dst) (rate(xrdhover_cpu_seconds_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])), 1e-9)",
+          "legendFormat": "{{src_dst}} bytes / CPU-sec",
           "refId": "A"
         }
       ],
@@ -824,8 +771,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (instance, run_id) (xrdhover_process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"})",
-          "legendFormat": "RSS {{instance}} {{run_id}}",
+          "expr": "sum by (source, dest, src_dst) (xrdhover_process_resident_memory_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"})",
+          "legendFormat": "RSS {{src_dst}}",
           "refId": "A"
         }
       ],
@@ -900,8 +847,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum by (cms_site) (xrdhover_site_achieved_rate_bytes{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"})) * 8",
-          "legendFormat": "{{cms_site}}",
+          "expr": "(sum by (cms_site, source, dest, src_dst) (xrdhover_site_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"})) * 8",
+          "legendFormat": "{{src_dst}} {{cms_site}}",
           "refId": "A"
         }
       ],
@@ -964,8 +911,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum by (data_server) (xrdhover_endpoint_achieved_rate_bytes{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"})) * 8",
-          "legendFormat": "{{data_server}}",
+          "expr": "(sum by (data_server, source, dest, src_dst) (xrdhover_endpoint_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"})) * 8",
+          "legendFormat": "{{src_dst}} {{data_server}}",
           "refId": "A"
         }
       ],
@@ -1020,8 +967,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (cms_site, result) (xrdhover_site_sessions_total{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"})",
-          "legendFormat": "{{cms_site}} {{result}}",
+          "expr": "sum by (cms_site, result, source, dest, src_dst) (xrdhover_site_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"})",
+          "legendFormat": "{{src_dst}} {{cms_site}} {{result}}",
           "refId": "A"
         }
       ],
@@ -1076,8 +1023,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (data_server, result) (xrdhover_endpoint_sessions_total{job=~\"$job\", instance=~\"$instance\", run_id=~\"$run_id\"})",
-          "legendFormat": "{{data_server}} {{result}}",
+          "expr": "sum by (data_server, result, source, dest, src_dst) (xrdhover_endpoint_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"})",
+          "legendFormat": "{{src_dst}} {{data_server}} {{result}}",
           "refId": "A"
         }
       ],
@@ -1142,13 +1089,13 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(xrdhover_bytes_read_total{job=~\"$job\"}, instance)",
+        "definition": "label_values(xrdhover_bytes_read_total{job=~\"$job\"}, source)",
         "includeAll": true,
-        "label": "instance",
+        "label": "source",
         "multi": true,
-        "name": "instance",
+        "name": "source",
         "query": {
-          "query": "label_values(xrdhover_bytes_read_total{job=~\"$job\"}, instance)",
+          "query": "label_values(xrdhover_bytes_read_total{job=~\"$job\"}, source)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
@@ -1166,13 +1113,37 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(xrdhover_bytes_read_total{job=~\"$job\"}, run_id)",
+        "definition": "label_values(xrdhover_bytes_read_total{job=~\"$job\", source=~\"$source\"}, dest)",
         "includeAll": true,
-        "label": "run_id",
+        "label": "dest",
         "multi": true,
-        "name": "run_id",
+        "name": "dest",
         "query": {
-          "query": "label_values(xrdhover_bytes_read_total{job=~\"$job\"}, run_id)",
+          "query": "label_values(xrdhover_bytes_read_total{job=~\"$job\", source=~\"$source\"}, dest)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(xrdhover_bytes_read_total{job=~\"$job\", source=~\"$source\", dest=~\"$dest\"}, src_dst)",
+        "includeAll": true,
+        "label": "src_dst",
+        "multi": true,
+        "name": "src_dst",
+        "query": {
+          "query": "label_values(xrdhover_bytes_read_total{job=~\"$job\", source=~\"$source\", dest=~\"$dest\"}, src_dst)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
@@ -1189,6 +1160,6 @@
   "timezone": "browser",
   "title": "xrdhover / D1 Challenge Overview",
   "uid": "xrdhover-d1",
-  "version": 8,
+  "version": 13,
   "weekStart": ""
 }

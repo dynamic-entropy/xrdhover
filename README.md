@@ -58,8 +58,10 @@ xrdhover validate job.json
 
 Field mapping, `run_id` / `job_id` rules, and `max_bytes` policy live in
 [tckestrel/docs/xrdhover.md](https://github.com/dynamic-entropy/tckestrel/blob/master/docs/xrdhover.md).
-Schema is `schema_version: 1`. Do not use `pattern.max_bytes: "auto"` for
-PREMIX — auto caps a session at 32 MB.
+Schema is `schema_version: 1`. tckestrel writes `pattern.read_size` from
+`chunk_bytes` (one `Read()`, max 8 MB) and `pattern.max_bytes` from
+`max_bytes` (bytes from one file, default 32 MB). Do not use `"auto"`
+and do not set `max_bytes` to a PREMIX file size.
 
 A grid-shaped example is [workloads/job.json](workloads/job.json).
 
@@ -96,8 +98,8 @@ Workload `run` checks the x509 proxy: not group/other-writable, remaining TTL
 ## Metrics
 
 Pushgateway job default is `xrdhover`. Scrape
-`xrdhover_achieved_rate_bytes` (bytes / wall; cumulative). Labels:
-`run_id` (stable per source–dest cell), `job_id` (unique per process).
+`xrdhover_achieved_rate_bytes` (bytes / wall; cumulative). The link label is
+`src_dst` (`SOURCE__DEST`). Pushgateway grouping is `src_dst`, not `instance`.
 The process DELETEs its Pushgateway group on exit unless
 `sinks.pushgateway.keep` is true.
 
