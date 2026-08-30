@@ -9,7 +9,8 @@ namespace xrdhover {
 
 // Encode a MetricsSnapshot as Prometheus text exposition (0.0.4).
 // Common labels: src_dst (workload run_id / SOURCE__DEST), job_id, target,
-// endpoint, source, dest. Pushgateway grouping key is src_dst, not instance.
+// endpoint, source, dest. Pushgateway grouping is src_dst + replica (job_id).
+// replica is uniqueness only — see push_group.hh. Not a Grafana dimension.
 // Histograms use cumulative _bucket{le="..."} + _sum + _count.
 // Every metric name is prefixed with xrdhover_ (Prometheus application namespace).
 std::string EncodePrometheusText(const MetricsSnapshot& snap);

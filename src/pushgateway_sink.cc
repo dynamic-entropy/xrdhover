@@ -61,10 +61,14 @@ std::string PushgatewaySink::UrlEncode(const std::string& s) {
     return r;
 }
 
-std::string PushgatewaySink::GroupUrl(const std::string& src_dst) {
-    if (src_dst == last_src_dst_ && !cached_group_url_.empty()) return cached_group_url_;
-    cached_group_url_ = base_url_ + "/metrics/job/" + encoded_job_ + "/src_dst/" + UrlEncode(src_dst);
+std::string PushgatewaySink::GroupUrl(const std::string& src_dst, const std::string& replica) {
+    if (src_dst == last_src_dst_ && replica == last_replica_ && !cached_group_url_.empty()) {
+        return cached_group_url_;
+    }
+    cached_group_url_ =
+        base_url_ + FormatPushGroupPath(encoded_job_, UrlEncode(src_dst), UrlEncode(replica));
     last_src_dst_ = src_dst;
+    last_replica_ = replica;
     return cached_group_url_;
 }
 
@@ -110,17 +114,19 @@ bool PushgatewaySink::Push(const MetricsSnapshot& snap) {
     if (finished_) return false;
     const std::string src_dst =
         !snap.run_id.empty() ? snap.run_id : (!snap.job_id.empty() ? snap.job_id : "local");
-    const std::string url = GroupUrl(src_dst);
+    const std::string replica = PushReplicaValue(snap.job_id);
+    const std::string url = GroupUrl(src_dst, replica);
     const std::string body = EncodePrometheusText(snap);
     return HttpRequest("PUT", url, body, nullptr);
 }
 
-void PushgatewaySink::Finish(const std::string& src_dst) {
+void PushgatewaySink::Finish(const std::string& src_dst, const std::string& replica) {
     if (finished_) return;
     finished_ = true;
     const std::string key = !src_dst.empty() ? src_dst : last_src_dst_;
-    if (key.empty()) return;
-    (void)HttpRequest("DELETE", GroupUrl(key), {}, nullptr);
+    const std::string rep = !replica.empty() ? replica : last_replica_;
+    if (key.empty() || rep.empty()) return;
+    (void)HttpRequest("DELETE", GroupUrl(key, rep), {}, nullptr);
 }
 
 }  // namespace xrdhover

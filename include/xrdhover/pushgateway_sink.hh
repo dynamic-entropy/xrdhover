@@ -2,6 +2,7 @@
 #define XRDHOVER_PUSHGATEWAY_SINK_HH
 
 #include "xrdhover/metrics.hh"
+#include "xrdhover/push_group.hh"
 
 #include <curl/curl.h>
 
@@ -10,7 +11,8 @@
 namespace xrdhover {
 
 // Pushes Prometheus text to a Pushgateway.
-// Grouping key: job=<push_job>, src_dst=<run_id / SOURCE__DEST>.
+// Grouping: job + src_dst + replica. See push_group.hh — replica is
+// uniqueness only and must not become a Grafana dimension.
 // Deletes the grouping key on Finish() (clean exit).
 //
 // Reuses one libcurl easy handle across Push/Finish so TCP/TLS connections
@@ -28,12 +30,12 @@ public:
     bool Push(const MetricsSnapshot& snap);
 
     // DELETE the grouping key. Safe to call multiple times.
-    void Finish(const std::string& src_dst);
+    void Finish(const std::string& src_dst, const std::string& replica);
 
     const std::string& base_url() const { return base_url_; }
 
 private:
-    std::string GroupUrl(const std::string& src_dst);
+    std::string GroupUrl(const std::string& src_dst, const std::string& replica);
     bool HttpRequest(const char* method, const std::string& url, const std::string& body,
                      long* http_code_out);
     std::string UrlEncode(const std::string& s);
@@ -42,6 +44,7 @@ private:
     std::string push_job_;
     std::string encoded_job_;
     std::string last_src_dst_;
+    std::string last_replica_;
     std::string cached_group_url_;
     bool finished_ = false;
 

@@ -99,7 +99,10 @@ Workload `run` checks the x509 proxy: not group/other-writable, remaining TTL
 
 Pushgateway job default is `xrdhover`. Scrape
 `xrdhover_achieved_rate_bytes` (bytes / wall; cumulative). The link label is
-`src_dst` (`SOURCE__DEST`). Pushgateway grouping is `src_dst`, not `instance`.
+`src_dst` (`SOURCE__DEST`). Pushgateway grouping is `src_dst` + `replica`
+(`sinks.job_id`), not `instance`. `replica` exists so N jobs on one link do
+not overwrite each other; Grafana sums it away (not a variable or legend).
+See [include/xrdhover/push_group.hh](include/xrdhover/push_group.hh).
 The process DELETEs its Pushgateway group on exit unless
 `sinks.pushgateway.keep` is true.
 

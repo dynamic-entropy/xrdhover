@@ -111,6 +111,7 @@ if(XRDHOVER_ENABLE_TESTS)
     tests/test_site_map.cc
     tests/test_sitename_resolver.cc
     tests/test_report_command.cc
+    tests/test_push_group.cc
     tests/stub_run_command.cc
     src/units.cc
     src/log.cc
