@@ -28,9 +28,10 @@ jobs:
           version="${tag#v}"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
-      - name: Build release tarball
+      - name: Build release tarball (el9 amd64)
         env:
           VERSION: ${{ steps.ver.outputs.version }}
+          ALMA_VERSION: "9"
         run: |
           chmod +x scripts/build-release.sh scripts/install.sh
           ./scripts/build-release.sh

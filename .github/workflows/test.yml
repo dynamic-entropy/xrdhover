@@ -7,8 +7,13 @@ on:
 
 jobs:
   unit:
+    # el9 is the tckestrel/CMS rhel9 contract. el10 is extra (newer glibc).
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [almalinux:9, almalinux:10]
     runs-on: ubuntu-latest
-    container: almalinux:10
+    container: ${{ matrix.image }}
     steps:
       - name: Install dependencies
         run: |

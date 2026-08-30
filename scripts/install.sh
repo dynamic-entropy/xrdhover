@@ -66,7 +66,7 @@ echo "==> checking prerequisites"
 
 if [[ "$(uname -s)" != "Linux" ]]; then
   add_missing "OS is $(uname -s), need Linux" \
-    "run this installer on linux/amd64 (e.g. cmsxrdhover-amd64 / el10)"
+    "run this installer on linux/amd64 (el9 or newer; the binary is AlmaLinux 9)"
 fi
 
 host_arch="$(uname -m)"
@@ -85,7 +85,7 @@ if ! have_cmd sha256sum && ! have_cmd shasum; then
 fi
 
 have_lib 'libXrdCl.so' || add_missing "library libXrdCl (XRootD client)" \
-  "$(pkg_hint epel-release); $(pkg_hint xrootd-client)  # el10: also 'dnf config-manager --set-enabled crb' if needed"
+  "$(pkg_hint epel-release); $(pkg_hint xrootd-client)  # el9+: enable crb if the XRootD repo needs it"
 have_lib 'libcurl.so' || add_missing "library libcurl" "$(pkg_hint libcurl)"
 have_lib 'libcrypto.so' || add_missing "library libcrypto (OpenSSL)" "$(pkg_hint openssl-libs)"
 
@@ -113,7 +113,7 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
     i=$((i + 1))
   done
   echo >&2
-  echo "On AlmaLinux/RHEL 10 (el10), a typical bootstrap is:" >&2
+  echo "The release binary is built on AlmaLinux 9 (el9). On el9/el10:" >&2
   echo "  sudo dnf install -y epel-release curl tar coreutils" >&2
   echo "  sudo dnf config-manager --set-enabled crb   # if needed" >&2
   echo "  sudo dnf install -y xrootd-client libcurl openssl-libs" >&2

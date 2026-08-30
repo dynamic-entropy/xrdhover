@@ -12,8 +12,10 @@ monitoring (MONIT) can identify it.
 
 ## Install (linux/amd64)
 
-From [GitHub Releases](https://github.com/dynamic-entropy/xrdhover/releases)
-(requires `xrootd-client` on the host):
+From [GitHub Releases](https://github.com/dynamic-entropy/xrdhover/releases).
+The `linux-amd64` tarball is an **AlmaLinux 9** build (glibc 2.34, OpenSSL 3).
+That is the CMS Connect / tckestrel WN (`+REQUIRED_OS=rhel9`). Requires
+`xrootd-client` 6 (`libXrdCl.so.6`) on the host, or CMSSW cmsenv on the grid.
 
 ```sh
 curl -fsSL https://github.com/dynamic-entropy/xrdhover/releases/latest/download/install.sh | sudo bash
@@ -28,12 +30,17 @@ xrdhover version
 
 ## Condor / tckestrel
 
-The release binary is linked against **XRootD 6** (`libXrdCl.so.6`). CMS
-glidein images do not ship that library. tckestrel therefore submits
-`run_xrdhover.sh` as the executable: cmsenv of `CMSSW_20_1_0_pre2`
-(cmsdist XRootD 6.0.2, el9 / `rhel9`), then execs the transferred binary.
-Do not use CVMFS for the **executable**. Do not cmsenv a 15.x–20.0 release
-(those still ship XRootD 5). Version table:
+**ABI stack for Condor** (all three must be the same OS family):
+
+| Layer | Pin |
+|---|---|
+| Glidein | `+REQUIRED_OS=rhel9` (el9) |
+| Binary | `linux-amd64` = AlmaLinux 9 + XRootD 6. Do not ship an el10 build. |
+| `libXrdCl.so.6` | `run_xrdhover.sh` cmsenv of `CMSSW_20_1_0_pre2` (`el9_*`, cmsdist 6.0.2) |
+
+CMS glideins do not ship XrdCl. Do not use CVMFS for the **executable**. Do not
+cmsenv a 15.x–20.0 release (XRootD 5) or an el8 `SCRAM_ARCH` on an el9 WN
+(`libssl.so.1.1`). Version table:
 [tckestrel/docs/xrdhover.md](https://github.com/dynamic-entropy/tckestrel/blob/master/docs/xrdhover.md#cmssw--xrdcl).
 
 ```text
@@ -101,9 +108,13 @@ See [dashboards/README.md](dashboards/README.md).
 
 Requires CMake ≥ 3.24, C++17, **XRootD 6** client libraries, libcurl, OpenSSL.
 
+The GitHub `linux-amd64` release is produced with `ALMA_VERSION=9`. CI unit-tests
+el9 and el10. Building on el10 (`ALMA_VERSION=10`) is fine locally; do not
+upload that tarball as `linux-amd64` for tckestrel.
+
 ```sh
 cmake -S . -B build
 cmake --build build -j
 ctest --test-dir build --output-on-failure
-./scripts/build-release.sh   # → dist/xrdhover-*-linux-amd64.tar.gz
+ALMA_VERSION=9 ./scripts/build-release.sh   # → dist/xrdhover-*-linux-amd64.tar.gz
 ```

@@ -1,6 +1,13 @@
-# Build linux/amd64 xrdhover against AlmaLinux 10 (el10) + XRootD client.
-# Usage: see scripts/build-release.sh
-ARG ALMA_VERSION=10
+# Grid contract: tckestrel WNs are CMS rhel9 (el9, OpenSSL 3, glibc 2.34).
+# Build on AlmaLinux 9 so the binary runs there. An el10 build will fail on
+# el9 (GLIBC / GLIBCXX). el10 remains a valid ALMA_VERSION for local/dev only.
+#
+#   ALMA_VERSION=9  → release artifact linux-amd64 (tckestrel default)
+#   ALMA_VERSION=10 → newer host; do not ship to rhel9 glideins
+#
+# XRootD 6 from xrootd.cern.ch (soname libXrdCl.so.6). On the grid, tckestrel
+# cmsenv's CMSSW_20_1_0_pre2 (el9, cmsdist xrootd 6.0.2) for that library.
+ARG ALMA_VERSION=9
 FROM --platform=linux/amd64 almalinux:${ALMA_VERSION}
 
 RUN dnf -y install epel-release \

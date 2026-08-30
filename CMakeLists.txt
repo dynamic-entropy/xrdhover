@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.24)
 # Default for local builds; release builds pass -DXRDHOVER_VERSION=<tag> so the
 # binary matches the GitHub release / tarball name.
 if(NOT DEFINED XRDHOVER_VERSION)
-  set(XRDHOVER_VERSION "0.2.0")
+  set(XRDHOVER_VERSION "0.2.1")
 endif()
 
 project(xrdhover
@@ -19,6 +19,8 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
 
+# Runtime: XRootD 6 client (libXrdCl.so.6). Grid jobs get that library from
+# CMSSW_20_1_0_pre2 (el9). The release binary itself must be built on el9.
 find_package(XRootD 6 REQUIRED COMPONENTS CLIENT)
 find_package(CURL REQUIRED)
 find_package(OpenSSL REQUIRED)

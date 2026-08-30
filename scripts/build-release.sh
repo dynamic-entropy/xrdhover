@@ -65,27 +65,30 @@ if [[ -z "$VERSION" ]]; then
 fi
 
 ARCH="${ARCH:-linux-amd64}"
-IMAGE_TAG="${IMAGE_TAG:-xrdhover-build:${VERSION}}"
+# 9 = CMS rhel9 / tckestrel. 10 = local/dev only; do not ship to glideins.
+ALMA_VERSION="${ALMA_VERSION:-9}"
+IMAGE_TAG="${IMAGE_TAG:-xrdhover-build:${VERSION}-el${ALMA_VERSION}}"
 DIST_DIR="${DIST_DIR:-${ROOT}/dist}"
 STAGE="${DIST_DIR}/stage/xrdhover-${VERSION}-${ARCH}"
 TARBALL="${DIST_DIR}/xrdhover-${VERSION}-${ARCH}.tar.gz"
 
-echo "  ok: engine=${ENGINE}, version=${VERSION}, arch=${ARCH}"
+echo "  ok: engine=${ENGINE}, version=${VERSION}, arch=${ARCH}, alma=${ALMA_VERSION}"
 if [[ "$(uname -m)" != "x86_64" && "$(uname -m)" != "amd64" ]]; then
   echo "note: host is $(uname -m); build uses --platform=linux/amd64 (needs qemu/binfmt)" >&2
 fi
 
 echo "==> building image ${IMAGE_TAG} with ${ENGINE} (platform linux/amd64)"
 if ! "$ENGINE" build \
-  --platform=linux/amd64 \
-  --build-arg "VERSION=${VERSION}" \
-  -t "$IMAGE_TAG" \
-  -f Containerfile \
-  .; then
+    --platform=linux/amd64 \
+    --build-arg "VERSION=${VERSION}" \
+    --build-arg "ALMA_VERSION=${ALMA_VERSION}" \
+    -t "$IMAGE_TAG" \
+    -f Containerfile \
+    .; then
   echo "error: container build failed" >&2
   echo "  common fixes:" >&2
   echo "    - ensure qemu-user-static / binfmt is set up for amd64 on arm hosts" >&2
-  echo "    - check network access to pull almalinux:10 and XRootD packages" >&2
+  echo "    - check network access to pull almalinux:${ALMA_VERSION} and XRootD 6 packages" >&2
   exit 1
 fi
 
@@ -97,6 +100,7 @@ cleanup() { "$ENGINE" rm -f "$cid" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 "$ENGINE" cp "${cid}:/out/xrdhover" "${STAGE}/bin/xrdhover"
 chmod 0755 "${STAGE}/bin/xrdhover"
+printf 'el%s-amd64\n' "${ALMA_VERSION}" >"${STAGE}/BUILD_OS"
 # Version match is checked inside the Containerfile build (linux/amd64); do not
 # re-exec the staged binary here — hosts may be a different arch (e.g. aarch64).
 cp -a packaging/share/xrdhover "${STAGE}/share/"
