@@ -28,14 +28,19 @@ xrdhover version
 
 ## Condor / tckestrel
 
-tckestrel fetches the release binary (`<version>/<arch>/xrdhover`) and submits
-it as the job executable (not CVMFS):
+The release binary is linked against **XRootD 6** (`libXrdCl.so.6`). CMS
+glidein images do not ship that library. tckestrel therefore submits
+`run_xrdhover.sh` as the executable: cmsenv of `CMSSW_20_1_0_pre2`
+(cmsdist XRootD 6.0.2, el9 / `rhel9`), then execs the transferred binary.
+Do not use CVMFS for the **executable**. Do not cmsenv a 15.x–20.0 release
+(those still ship XRootD 5). Version table:
+[tckestrel/docs/xrdhover.md](https://github.com/dynamic-entropy/tckestrel/blob/master/docs/xrdhover.md#cmssw--xrdcl).
 
 ```text
-executable           = xrdhover
+executable           = run_xrdhover.sh
 transfer_executable  = true
-arguments            = run job.json
-transfer_input_files = job.json, files.txt
+arguments            = -C CMSSW_20_1_0_pre2 -- run job.json
+transfer_input_files = job.json, files.txt, xrdhover
 ```
 
 Preflight on the schedd (no XRootD I/O):
