@@ -155,6 +155,8 @@ void MetricsRegistry::ObserveSessionOk(uint64_t bytes, uint64_t ops, double open
     AttributeLocked(data_server, true, bytes, ErrorClass::None, cms_site);
 }
 
+void MetricsRegistry::ObserveReadOp(double seconds) { read_op_seconds_.Observe(seconds); }
+
 void MetricsRegistry::ObserveSessionFail(ErrorClass error_class, const std::string& data_server,
                                          const std::string& cms_site) {
     sessions_fail_.fetch_add(1, std::memory_order_relaxed);
@@ -222,6 +224,7 @@ MetricsSnapshot MetricsRegistry::Snapshot(double wall_s) {
     s.open_seconds = open_seconds_.Snapshot();
     s.ttfb_seconds = ttfb_seconds_.Snapshot();
     s.read_seconds = read_seconds_.Snapshot();
+    s.read_op_seconds = read_op_seconds_.Snapshot();
     s.redirects_per_open = redirects_per_open_.Snapshot();
     s.inflight_reads = inflight_reads_.load(std::memory_order_relaxed);
     s.peak_inflight = peak_inflight_.load(std::memory_order_relaxed);

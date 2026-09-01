@@ -13,7 +13,7 @@ namespace xrdhover {
 
 struct WorkItem {
     FileSessionOptions session;
-    uint64_t charge_bytes = 0;  // tokens to acquire before start
+    uint64_t op_bytes = 0;  // tokens to acquire before this session's first Read
 };
 
 // Seeded work generator: picks file + session options from RunConfig.

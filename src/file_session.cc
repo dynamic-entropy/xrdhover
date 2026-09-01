@@ -9,7 +9,7 @@
 #include <chrono>
 #include <cinttypes>
 #include <condition_variable>
-#include <cstdio>
+#include <cstring>
 #include <functional>
 #include <future>
 #include <limits>
@@ -22,6 +22,9 @@
 #include <vector>
 
 namespace xrdhover {
+
+class FileSession;
+
 namespace {
 
 using Clock = std::chrono::steady_clock;
@@ -53,8 +56,6 @@ class FnHandler final : public XrdCl::ResponseHandler {
     Fn fn_;
 };
 
-class FileSession;
-
 // One shared deadline thread for all sessions (avoids one detached 50 ms poller
 // per in-flight session). Entries are weak; completed sessions drop out.
 // Must be ShutDown() before process exit — a detached forever-loop races static
@@ -76,10 +77,32 @@ class SessionDeadlineWatchdog {
         {
             std::lock_guard<std::mutex> lock(mu_);
             if (stop_) return;
-            entries_.push_back(Entry{deadline, session});
+            bool found = false;
+            for (auto& e : entries_) {
+                auto self = e.session.lock();
+                if (self && self.get() == session.get()) {
+                    e.deadline = deadline;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) entries_.push_back(Entry{deadline, session});
             EnsureThreadLocked();
         }
         cv_.notify_one();
+    }
+
+    void Disarm(const std::shared_ptr<FileSession>& session) {
+        if (!session) return;
+        std::lock_guard<std::mutex> lock(mu_);
+        size_t out = 0;
+        for (size_t i = 0; i < entries_.size(); ++i) {
+            auto self = entries_[i].session.lock();
+            if (!self || self.get() == session.get()) continue;
+            if (out != i) entries_[out] = std::move(entries_[i]);
+            ++out;
+        }
+        entries_.resize(out);
     }
 
     void ShutDown() {
@@ -123,10 +146,12 @@ class SessionDeadlineWatchdog {
     std::thread thread_;
 };
 
+}  // namespace
+
 class FileSession : public std::enable_shared_from_this<FileSession> {
    public:
-    FileSession(const FileSessionOptions& opts, FileSessionDone on_done)
-        : opts_(opts), on_done_(std::move(on_done)) {
+    FileSession(const FileSessionOptions& opts, FileSessionDone on_done, FileSessionPacing pacing)
+        : opts_(opts), on_done_(std::move(on_done)), pacing_(std::move(pacing)) {
         result_.url = opts_.url;
         result_.vector = opts_.vector_chunks > 0;
 
@@ -143,9 +168,7 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
         self_keep_ = shared_from_this();
         buffer_.resize(OpBytes());
         t_start_ = Clock::now();
-        if (opts_.wall_timeout_s > 0.0) {
-            SessionDeadlineWatchdog::Instance().Arm(shared_from_this(), opts_.wall_timeout_s);
-        }
+        ArmOpDeadline();
         ++pending_cbs_;
         XrdCl::XRootDStatus st =
             file_.Open(opts_.url, XrdCl::OpenFlags::Read, XrdCl::Access::None, &open_handler_);
@@ -154,6 +177,7 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
             result_.error = "open submission failed: " + st.ToString();
             result_.status_code = st.code;
             result_.err_code = st.errNo;
+            RefundPrepaid();
             Complete();
             ReleaseIfIdle(lock);
             return false;
@@ -178,6 +202,39 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
         ReleaseIfIdle(lock);
     }
 
+    void IssueNextFromEngine() {
+        std::unique_lock<std::mutex> lock(smu_);
+        if (completed_.load(std::memory_order_acquire)) {
+            ReleaseIfIdle(lock);
+            return;
+        }
+        IssueNext();
+        ReleaseIfIdle(lock);
+    }
+
+    uint64_t NextOpBytesLocked() const {
+        const uint64_t op = OpBytes();
+        if (!budget_set_) return op;
+        if (remaining_ == 0) return 0;
+        return std::min(op, remaining_);
+    }
+
+    uint64_t NextOpBytes() {
+        std::lock_guard<std::mutex> lock(smu_);
+        return NextOpBytesLocked();
+    }
+
+    void CloseNow() {
+        std::unique_lock<std::mutex> lock(smu_);
+        if (completed_.load(std::memory_order_acquire)) {
+            ReleaseIfIdle(lock);
+            return;
+        }
+        remaining_ = 0;
+        SubmitClose();
+        ReleaseIfIdle(lock);
+    }
+
    private:
     // All private methods below require smu_ to be held. Handlers must call
     // ReleaseIfIdle as their very last action: it may destroy *this.
@@ -194,8 +251,9 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
         // Preserve open/TTFB when available so failed probes still report latency.
         if (t_open_.time_since_epoch().count() != 0) {
             result_.open_ms = MsBetween(t_start_, t_open_);
-            if (ops_ > 0 && t_first_byte_.time_since_epoch().count() != 0) {
-                result_.ttfb_ms = MsBetween(t_open_, t_first_byte_);
+            if (ops_ > 0 && t_first_byte_.time_since_epoch().count() != 0 &&
+                t_first_issue_.time_since_epoch().count() != 0) {
+                result_.ttfb_ms = MsBetween(t_first_issue_, t_first_byte_);
             }
         }
         result_.total_s = SecsBetween(t_start_, Clock::now());
@@ -235,6 +293,7 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
         if (close_requested_) return;
         close_requested_ = true;
         ++pending_cbs_;
+        ArmOpDeadline();
         XrdCl::XRootDStatus s = file_.Close(&close_handler_);
         if (s.IsOK()) return;
         --pending_cbs_;
@@ -256,6 +315,27 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
         Complete();
     }
 
+    void ArmOpDeadline() {
+        if (opts_.wall_timeout_s > 0.0) {
+            SessionDeadlineWatchdog::Instance().Arm(shared_from_this(), opts_.wall_timeout_s);
+        }
+    }
+
+    void DisarmOpDeadline() {
+        SessionDeadlineWatchdog::Instance().Disarm(shared_from_this());
+    }
+
+    void RefundBytes(uint64_t n) {
+        if (n == 0 || !pacing_.on_refund) return;
+        pacing_.on_refund(n);
+    }
+
+    void RefundPrepaid() {
+        if (issued_read_) return;
+        RefundBytes(pacing_.prepaid_op_bytes);
+        pacing_.prepaid_op_bytes = 0;
+    }
+
     void Fail(const char* stage, XrdCl::XRootDStatus* st) {
         CapturePartialCounters();
         result_.error = std::string(stage) + " failed: " + (st ? st->ToString() : "(no status)");
@@ -264,6 +344,12 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
             result_.err_code = st->errNo;
         }
         delete st;
+        if (std::strcmp(stage, "read") == 0 || std::strcmp(stage, "vector_read") == 0) {
+            RefundBytes(requested_);
+            requested_ = 0;
+        } else if (!issued_read_) {
+            RefundPrepaid();
+        }
         Complete();
     }
 
@@ -276,8 +362,8 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
         result_.ops = ops_;
 
         result_.open_ms = MsBetween(t_start_, t_open_);
-        result_.ttfb_ms = ops_ > 0 ? MsBetween(t_open_, t_first_byte_) : 0.0;
-        result_.read_s = SecsBetween(t_open_, t_last_byte_);
+        result_.ttfb_ms = ops_ > 0 ? MsBetween(t_first_issue_, t_first_byte_) : 0.0;
+        result_.read_s = lat_sum_ms_ / 1000.0;
         result_.close_ms = MsBetween(t_last_byte_, t_end_);
         result_.total_s = SecsBetween(t_start_, t_end_);
         result_.throughput_Mbps =
@@ -319,12 +405,14 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
             return;
         }
         ++pending_cbs_;
+        ArmOpDeadline();
         XrdCl::XRootDStatus s = file_.Stat(/*force=*/true, &stat_handler_);
         if (!s.IsOK()) {
             --pending_cbs_;
             result_.error = "stat submission failed: " + s.ToString();
             result_.status_code = s.code;
             result_.err_code = s.errNo;
+            RefundPrepaid();
             Complete();
         }
         ReleaseIfIdle(lock);
@@ -365,6 +453,7 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
             rng_ = std::mt19937_64(opts_.offset_seed);
             remaining_ = budget;
             next_offset_ = 0;
+            budget_set_ = true;
             IssueNext();
             ReleaseIfIdle(lock);
             return;
@@ -378,6 +467,7 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
             result_.file_size = file_size_;
             result_.data_server = data_server_;
             result_.open_hosts = hops_;
+            RefundPrepaid();
             Complete();
             ReleaseIfIdle(lock);
             return;
@@ -385,6 +475,7 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
 
         remaining_ = std::min(file_size_ - start, budget);
         next_offset_ = start;
+        budget_set_ = true;
         IssueNext();
         ReleaseIfIdle(lock);
     }
@@ -394,13 +485,16 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
         if (timed_out_) remaining_ = 0;
         if (remaining_ == 0) {
             t_last_byte_ = Clock::now();
+            RefundPrepaid();
             SubmitClose();
             return;
         }
 
         t_issue_ = Clock::now();
+        if (ops_ == 0) t_first_issue_ = t_issue_;
         XrdCl::XRootDStatus s;
         ++pending_cbs_;
+        ArmOpDeadline();
         if (opts_.vector_chunks > 0) {
             XrdCl::ChunkList chunks;
             char* buf = buffer_.data();
@@ -439,12 +533,19 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
             s = file_.Read(next_offset_, static_cast<uint32_t>(requested_), buffer_.data(),
                            &read_handler_);
         }
+        if (pacing_.prepaid_op_bytes > requested_) {
+            RefundBytes(pacing_.prepaid_op_bytes - requested_);
+        }
+        pacing_.prepaid_op_bytes = 0;
+        issued_read_ = true;
         if (!s.IsOK()) {
             --pending_cbs_;
             CapturePartialCounters();
             result_.error = "read submission failed: " + s.ToString();
             result_.status_code = s.code;
             result_.err_code = s.errNo;
+            RefundBytes(requested_);
+            requested_ = 0;
             Complete();
         }
     }
@@ -494,6 +595,17 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
             next_offset_ += got;
         }
         remaining_ = got < requested_ ? 0 : remaining_ - got;
+        if (got < requested_) RefundBytes(requested_ - got);
+        if (pacing_.on_read_op) pacing_.on_read_op(lat / 1000.0);
+        requested_ = 0;
+
+        if (pacing_.paced && remaining_ > 0 && pacing_.on_ready) {
+            DisarmOpDeadline();
+            auto self = shared_from_this();
+            lock.unlock();
+            pacing_.on_ready(std::move(self));
+            return;
+        }
         IssueNext();
         ReleaseIfIdle(lock);
     }
@@ -534,6 +646,7 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
 
     const FileSessionOptions opts_;
     FileSessionDone on_done_;
+    FileSessionPacing pacing_;
     FileSessionResult result_;
     XrdCl::File file_;
     std::vector<char> buffer_;
@@ -555,7 +668,8 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
     double lat_min_ms_ = std::numeric_limits<double>::max();
     double lat_max_ms_ = 0.0;
 
-    Clock::time_point t_start_, t_open_, t_first_byte_, t_last_byte_, t_end_, t_issue_;
+    Clock::time_point t_start_, t_open_, t_first_byte_, t_first_issue_, t_last_byte_, t_end_,
+        t_issue_;
 
     // Serializes all session state transitions between XrdCl handler threads
     // and the deadline watchdog. XrdCl invokes response handlers without
@@ -566,8 +680,12 @@ class FileSession : public std::enable_shared_from_this<FileSession> {
     int pending_cbs_ = 0;
     bool timed_out_ = false;        // guarded by smu_
     bool close_requested_ = false;  // guarded by smu_
+    bool budget_set_ = false;       // guarded by smu_
+    bool issued_read_ = false;      // guarded by smu_
     std::atomic<bool> completed_{false};  // atomic: watchdog reads it lock-free
 };
+
+namespace {
 
 void SessionDeadlineWatchdog::ThreadMain() {
     constexpr auto kMaxSleep = std::chrono::seconds(1);
@@ -610,20 +728,43 @@ void SessionDeadlineWatchdog::ThreadMain() {
 
 }  // namespace
 
+uint64_t SessionOpBytes(const FileSessionOptions& opts) {
+    const uint64_t chunk = std::max<uint64_t>(opts.chunk_size, 1);
+    if (opts.vector_chunks > 0) return chunk * opts.vector_chunks;
+    return chunk;
+}
+
 FileSessionResult RunFileSession(const FileSessionOptions& opts) {
     std::promise<FileSessionResult> done;
     auto fut = done.get_future();
     auto session = std::make_shared<FileSession>(opts, [&](FileSessionResult r) {
         done.set_value(std::move(r));
-    });
+    }, FileSessionPacing{});
     // On sync submission failure Start already ran Complete, so fut is ready.
     (void)session->Start();
     return fut.get();
 }
 
-void StartFileSession(const FileSessionOptions& opts, FileSessionDone on_done) {
-    auto session = std::make_shared<FileSession>(opts, std::move(on_done));
+void StartFileSession(const FileSessionOptions& opts, FileSessionDone on_done,
+                      FileSessionPacing pacing) {
+    auto session = std::make_shared<FileSession>(opts, std::move(on_done), std::move(pacing));
     (void)session->Start();
+}
+
+void FileSessionIssueNext(const std::shared_ptr<FileSession>& session) {
+    if (session) session->IssueNextFromEngine();
+}
+
+uint64_t FileSessionNextOpBytes(const std::shared_ptr<FileSession>& session) {
+    return session ? session->NextOpBytes() : 0;
+}
+
+void FileSessionCloseNow(const std::shared_ptr<FileSession>& session) {
+    if (session) session->CloseNow();
+}
+
+bool FileSessionIsCompleted(const std::shared_ptr<FileSession>& session) {
+    return !session || session->IsCompleted();
 }
 
 void ShutdownSessionWatchdog() { SessionDeadlineWatchdog::Instance().ShutDown(); }

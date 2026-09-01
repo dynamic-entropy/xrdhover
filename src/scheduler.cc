@@ -41,7 +41,7 @@ WorkItem Scheduler::Next() {
         item.session.vector_chunks = std::max<uint16_t>(1, cfg_.vector_chunks);
     }
 
-    item.charge_bytes = EstimateSessionCharge(cfg_, use_vector);
+    item.op_bytes = ComputeOpBytes(cfg_, use_vector);
     return item;
 }
 

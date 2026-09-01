@@ -16,6 +16,9 @@ class InFlightSemaphore {
     // Block until a slot is free or deadline passes. Returns false on timeout.
     bool AcquireUntil(std::chrono::steady_clock::time_point deadline);
 
+    // Non-blocking. Returns false if already at max.
+    bool TryAcquire();
+
     void Release();
 
     uint32_t current() const;

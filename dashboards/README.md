@@ -5,7 +5,7 @@ Importable JSON for ops Grafana (xrdmon / CMS). The observability stack is
 
 | File | Story |
 |---|---|
-| [`xrdhover-d1.json`](xrdhover-d1.json) | Achieved throughput by source–dest, success rate, inflight, hard/soft errors, open/TTFB, bytes/CPU-sec, achieved rate + FileSessions by CMS site and DataServer |
+| [`xrdhover-d1.json`](xrdhover-d1.json) | Achieved throughput by source–dest (with target overlay), success rate, inflight, hard/soft errors, open/TTFB, Read-op RTT, bytes/CPU-sec, achieved rate + FileSessions by CMS site and DataServer |
 
 **Hard vs soft:** `xrdhover_errors_total` = failed sessions;
 `xrdhover_soft_faults_total` = XrdCl Error log lines (e.g. connection reset)
@@ -18,9 +18,12 @@ Site/server throughput uses the same definition as the overall panel: gauges
 label is idle. FileSessions panels count completed Open→…→Close work items,
 not TCP connections.
 
-The achieved-throughput panel does not overlay `xrdhover_target_rate_bytes`.
-The Target rate stat stays on the side. Series are labeled `src_dst`
-(`SOURCE__DEST`).
+The achieved-throughput panel overlays `xrdhover_target_rate_bytes` (dashed) next to
+`xrdhover_achieved_rate_bytes` (`bytes / wall`) so the hold can be compared to the
+token-bucket refill. Series are labeled `src_dst` (`SOURCE__DEST`).
+
+Read-op RTT is `xrdhover_read_op_seconds` (issue→complete per Read; not ICMP).
+TTFB is first Read submit → first byte (token-queue wait is not included).
 
 ## Pushgateway `replica` (not a dashboard dimension)
 

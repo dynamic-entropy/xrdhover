@@ -45,6 +45,7 @@ json SnapshotToJsonl(const MetricsSnapshot& s) {
     j["xrdhover_open_seconds"] = HistogramToJson(s.open_seconds);
     j["xrdhover_ttfb_seconds"] = HistogramToJson(s.ttfb_seconds);
     j["xrdhover_read_seconds"] = HistogramToJson(s.read_seconds);
+    j["xrdhover_read_op_seconds"] = HistogramToJson(s.read_op_seconds);
     j["xrdhover_redirects_per_open"] = HistogramToJson(s.redirects_per_open);
     j["xrdhover_errors_total"] = s.errors_by_class;
     j["xrdhover_soft_faults_total"] = s.soft_faults_by_kind;
@@ -157,6 +158,7 @@ void FileSink::WriteResult(const MetricsSnapshot& snap, double cpu_seconds_at_st
     j["latency"] = {{"open_seconds", LatencyPercentiles(snap.open_seconds)},
                     {"ttfb_seconds", LatencyPercentiles(snap.ttfb_seconds)},
                     {"read_seconds", LatencyPercentiles(snap.read_seconds)},
+                    {"read_op_seconds", LatencyPercentiles(snap.read_op_seconds)},
                     {"redirects_per_open", LatencyPercentiles(snap.redirects_per_open)}};
     j["xrdhover_cpu_seconds_total"] = snap.cpu_seconds_total;
     j["xrdhover_process_resident_memory_bytes"] = snap.process_resident_memory_bytes;

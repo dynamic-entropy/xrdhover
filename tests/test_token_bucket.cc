@@ -14,7 +14,7 @@ TEST(TokenBucket, Uncapped) {
 }
 
 TEST(TokenBucket, AcquireAndRefund) {
-    TokenBucket b(1 << 20, 1 << 20);  // 1 MiB/s, burst 1 MiB
+    TokenBucket b(1 << 20, 1 << 20);  // 1 MiB/s, capacity 1 MiB
     EXPECT_TRUE(b.TryAcquire(512 * 1024));
     EXPECT_TRUE(b.TryAcquire(512 * 1024));
     EXPECT_FALSE(b.TryAcquire(1));
@@ -23,7 +23,7 @@ TEST(TokenBucket, AcquireAndRefund) {
 }
 
 TEST(TokenBucket, Refills) {
-    TokenBucket b(10 * 1024 * 1024, 1024);  // fast refill, small burst
+    TokenBucket b(10 * 1024 * 1024, 1024);  // fast refill, small capacity
     EXPECT_TRUE(b.TryAcquire(1024));
     EXPECT_FALSE(b.TryAcquire(1024));
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
@@ -37,8 +37,18 @@ TEST(TokenBucket, AcquireUntilDeadline) {
     EXPECT_FALSE(b.AcquireUntil(1000000, deadline));
 }
 
-TEST(TokenBucket, ChargeLargerThanBurstFailsFast) {
-    TokenBucket b(50ull << 20, 50ull << 20);  // 50 MiB/s, 50 MiB burst
+TEST(TokenBucket, ChargeLargerThanCapacityFailsFast) {
+    TokenBucket b(50ull << 20, 50ull << 20);  // 50 MiB/s, 50 MiB capacity
     const auto deadline = Clock::now() + std::chrono::milliseconds(50);
-    EXPECT_FALSE(b.AcquireUntil(100ull << 20, deadline));  // 100 MiB > burst
+    EXPECT_FALSE(b.AcquireUntil(100ull << 20, deadline));  // 100 MiB > capacity
+}
+
+TEST(TokenBucket, SecondsUntil) {
+    TokenBucket b(1 << 20, 1 << 20);  // 1 MiB/s, 1 MiB capacity
+    EXPECT_EQ(b.SecondsUntil(1 << 20), 0.0);
+    EXPECT_TRUE(b.TryAcquire(1 << 20));
+    const double wait = b.SecondsUntil(1 << 20);
+    EXPECT_GT(wait, 0.9);
+    EXPECT_LT(wait, 1.1);
+    EXPECT_GT(b.SecondsUntil(1ull << 40), 1e6);  // larger than capacity
 }

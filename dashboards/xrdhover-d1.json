@@ -40,7 +40,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Achieved rate (bits/s; Prom gauges are bytes/s \u00d7 8). Only series with a Pushgateway push in the last 60s are drawn (stale leftover groups vanish). Freshness matches on job+src_dst+replica; display sums replica away so Query A is one series per source\u2013dest. Query C: sum of that selection, 0 when idle.",
+      "description": "Achieved rate (bits/s; Prom gauges are bytes/s \u00d7 8) vs token-bucket target (dashed). Only series with a Pushgateway push in the last 60s are drawn (stale leftover groups vanish). Freshness matches on job+src_dst+replica; display sums replica away so Query A is one series per source\u2013dest. Query B: hold target. Query C: sum of achieved, 0 when idle.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -94,6 +94,40 @@
                   "mode": "fixed",
                   "fixedColor": "yellow"
                 }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "custom.stacking",
+                "value": {
+                  "group": "target",
+                  "mode": "none"
+                }
+              },
+              {
+                "id": "custom.drawStyle",
+                "value": "line"
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [8, 4]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
               }
             ]
           },
@@ -164,6 +198,15 @@
           "expr": "(sum by (source, dest, src_dst) (xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))) * 8",
           "legendFormat": "{{src_dst}}",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(sum by (source, dest, src_dst) (xrdhover_target_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))) * 8",
+          "legendFormat": "{{src_dst}} target",
+          "refId": "B"
         },
         {
           "datasource": {
@@ -586,7 +629,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Open and TTFB latency percentiles from client histograms.",
+      "description": "Open: Open submit \u2192 Open complete. TTFB: first Read submit \u2192 first byte (not Open\u2192first byte; token-queue wait is excluded).",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -608,7 +651,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
         "x": 0,
         "y": 28
       },
@@ -674,6 +717,85 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Per-Read issue-to-complete latency (application RTT; includes chunk serialization, excludes token-queue wait). Avg is histogram sum/count; p50/p95 from buckets.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "seconds",
+            "drawStyle": "line",
+            "fillOpacity": 5,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "scaleDistribution": {
+              "type": "log",
+              "log": 10
+            }
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 28
+      },
+      "id": 22,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "last"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (source, dest, src_dst) (rate(xrdhover_read_op_seconds_sum{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])) / clamp_min(sum by (source, dest, src_dst) (rate(xrdhover_read_op_seconds_count{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])), 1e-9)",
+          "legendFormat": "{{src_dst}} RTT avg",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.50, sum by (le, source, dest, src_dst) (rate(xrdhover_read_op_seconds_bucket{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])))",
+          "legendFormat": "{{src_dst}} RTT p50",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, source, dest, src_dst) (rate(xrdhover_read_op_seconds_bucket{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])))",
+          "legendFormat": "{{src_dst}} RTT p95",
+          "refId": "C"
+        }
+      ],
+      "title": "Read-op RTT",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "description": "Arch efficiency: bytes read per CPU-second (NOT a network rate). Unit is SI bytes (e.g. 303 MB = 303e6 B per CPU-s). Do not compare to the Mbps/Gbps throughput panels.",
       "fieldConfig": {
         "defaults": {
@@ -692,8 +814,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
+        "w": 8,
+        "x": 16,
         "y": 28
       },
       "id": 8,

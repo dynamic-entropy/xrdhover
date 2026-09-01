@@ -23,8 +23,11 @@
 #include <atomic>
 #include <chrono>
 #include <cinttypes>
+#include <condition_variable>
 #include <cstdio>
+#include <deque>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <unistd.h>
@@ -120,10 +123,9 @@ int RunEngine(const RunConfig& cfg) {
             "sitename_query: on (background thread; independent of I/O and scheduling)");
     }
 
-    // Burst covers a full max_inflight pipeline so the rate limiter can admit a full
-    // set of in-flight session charges without waiting on a 1-charge refill.
-    const uint64_t burst = ComputeBucketBurst(cfg);
-    TokenBucket bucket(cfg.target_rate_bytes_per_s, burst);
+    // Capacity is one Read (or VectorRead). Refill is target_rate.
+    const uint64_t capacity = ComputeBucketCapacity(cfg);
+    TokenBucket bucket(cfg.target_rate_bytes_per_s, capacity);
     InFlightSemaphore inflight(cfg.max_inflight);
     Scheduler sched(cfg);
 
@@ -192,15 +194,16 @@ int RunEngine(const RunConfig& cfg) {
     std::atomic<uint64_t> live{0};
     std::atomic<uint64_t> fail_count{0};
     std::atomic<uint64_t> wall_timeout_count{0};
+    std::atomic<bool> stop_pace{false};
     const auto t0 = Clock::now();
     const auto deadline = t0 + std::chrono::duration_cast<Clock::duration>(
                                    std::chrono::duration<double>(cfg.duration_s));
 
     XRDHOVER_LOG_ERR("run %s: duration=%s rate=%s max_inflight=%" PRIu32
-                    " pattern=%s files=%zu burst=%s",
+                    " pattern=%s files=%zu bucket_capacity=%s",
                     cfg.run_id.c_str(), FormatDuration(cfg.duration_s).c_str(),
                     DescribeTargetRate(cfg).c_str(), cfg.max_inflight, PatternTypeName(cfg.pattern),
-                    cfg.files.size(), FormatBytes(burst).c_str());
+                    cfg.files.size(), FormatBytes(capacity).c_str());
 
     auto take_snapshot = [&] {
         const auto now = Clock::now();
@@ -251,67 +254,138 @@ int RunEngine(const RunConfig& cfg) {
         });
     }
 
-    while (Clock::now() < deadline) {
-        if (!inflight.AcquireUntil(deadline)) break;
+    std::mutex pace_mu;
+    std::condition_variable pace_cv;
+    std::deque<std::shared_ptr<FileSession>> ready;
 
-        WorkItem work = sched.Next();
-        if (!bucket.AcquireUntil(work.charge_bytes, deadline)) {
-            inflight.Release();
-            break;
+    FileSessionPacing pacing;
+    pacing.paced = true;
+    pacing.on_ready = [&](std::shared_ptr<FileSession> session) {
+        if (stop_pace.load(std::memory_order_acquire)) {
+            FileSessionCloseNow(session);
+            return;
+        }
+        {
+            std::lock_guard<std::mutex> lock(pace_mu);
+            ready.push_back(std::move(session));
+        }
+        pace_cv.notify_one();
+    };
+    pacing.on_refund = [&](uint64_t n) {
+        bucket.Refund(n);
+        pace_cv.notify_one();
+    };
+    pacing.on_read_op = [&](double op_s) { registry.ObserveReadOp(op_s); };
+
+    auto session_done = [&](FileSessionResult result) {
+        // Do not Query sitename here — sync XrdCl from this callback deadlocks.
+        if (result.ok) {
+            registry.ObserveSessionOk(result.bytes_read, result.ops, result.open_ms / 1000.0,
+                                      result.ttfb_ms / 1000.0, result.read_s,
+                                      static_cast<double>(result.open_hosts),
+                                      result.data_server);
+        } else {
+            const ErrorClass cls =
+                ClassifyXRootDError(result.status_code, result.err_code, result.error);
+            registry.ObserveSessionFail(cls, result.data_server);
+            const uint64_t nth_fail = fail_count.fetch_add(1, std::memory_order_relaxed) + 1;
+            const uint64_t nth_timeout =
+                result.timed_out
+                    ? wall_timeout_count.fetch_add(1, std::memory_order_relaxed) + 1
+                    : 0;
+            if (nth_fail <= 5 || (result.timed_out && nth_timeout <= 3)) {
+                const char* ds =
+                    result.data_server.empty() ? "(unknown)" : result.data_server.c_str();
+                std::string file = "(unknown)";
+                if (!result.url.empty()) {
+                    const auto slash = result.url.rfind('/');
+                    file = slash == std::string::npos ? result.url : result.url.substr(slash + 1);
+                    if (file.empty()) file = "(unknown)";
+                }
+                XRDHOVER_LOG_ERR(
+                    "session error: %s data_server=%s file=%s "
+                    "bytes_read=%" PRIu64 " ops=%" PRIu64 " open_ms=%.0f total_s=%.1f",
+                    result.error.c_str(), ds, file.c_str(), result.bytes_read, result.ops,
+                    result.open_ms, result.total_s);
+            }
         }
 
-        const uint64_t charged = work.charge_bytes;
+        live.fetch_sub(1, std::memory_order_relaxed);
+        registry.SetInflight(live.load(std::memory_order_relaxed), inflight.peak());
+        inflight.Release();
+        pace_cv.notify_one();
+    };
+
+    while (Clock::now() < deadline) {
+        std::shared_ptr<FileSession> cont;
+        {
+            std::unique_lock<std::mutex> lock(pace_mu);
+            const auto can_work = [&] {
+                return !ready.empty() ||
+                       live.load(std::memory_order_relaxed) < cfg.max_inflight;
+            };
+            if (!can_work()) {
+                if (pace_cv.wait_until(lock, deadline, can_work) == false) break;
+            }
+            if (!ready.empty()) {
+                cont = std::move(ready.front());
+                ready.pop_front();
+            }
+        }
+
+        if (cont) {
+            if (FileSessionIsCompleted(cont)) continue;
+            const uint64_t n = FileSessionNextOpBytes(cont);
+            if (n == 0) {
+                FileSessionCloseNow(cont);
+                continue;
+            }
+            if (!bucket.TryAcquire(n)) {
+                {
+                    std::lock_guard<std::mutex> lock(pace_mu);
+                    ready.push_front(std::move(cont));
+                }
+                const double wait_s = bucket.SecondsUntil(n);
+                std::unique_lock<std::mutex> lock(pace_mu);
+                const auto until =
+                    Clock::now() + std::chrono::duration_cast<Clock::duration>(
+                                       std::chrono::duration<double>(wait_s));
+                pace_cv.wait_until(lock, std::min(deadline, until));
+                continue;
+            }
+            FileSessionIssueNext(cont);
+            continue;
+        }
+
+        if (live.load(std::memory_order_relaxed) >= cfg.max_inflight) continue;
+        if (!inflight.TryAcquire()) continue;
+
+        WorkItem work = sched.Next();
+        const uint64_t n = work.op_bytes;
+        if (!bucket.TryAcquire(n)) {
+            inflight.Release();
+            const double wait_s = bucket.SecondsUntil(n);
+            std::unique_lock<std::mutex> lock(pace_mu);
+            const auto until =
+                Clock::now() + std::chrono::duration_cast<Clock::duration>(
+                                   std::chrono::duration<double>(wait_s));
+            pace_cv.wait_until(lock, std::min(deadline, until));
+            continue;
+        }
+
         live.fetch_add(1, std::memory_order_relaxed);
         registry.SetInflight(live.load(std::memory_order_relaxed), inflight.peak());
+        FileSessionPacing p = pacing;
+        p.prepaid_op_bytes = n;
+        StartFileSession(work.session, session_done, std::move(p));
+    }
 
-        StartFileSession(work.session, [&, charged](FileSessionResult result) {
-            // Do not Query sitename here — sync XrdCl from this callback deadlocks.
-            if (result.ok) {
-                registry.ObserveSessionOk(result.bytes_read, result.ops, result.open_ms / 1000.0,
-                                          result.ttfb_ms / 1000.0, result.read_s,
-                                          static_cast<double>(result.open_hosts),
-                                          result.data_server);
-            } else {
-                const ErrorClass cls =
-                    ClassifyXRootDError(result.status_code, result.err_code, result.error);
-                registry.ObserveSessionFail(cls, result.data_server);
-                // Log the first few failures, plus the first few wall timeouts
-                // even if other error kinds already used up the budget.
-                const uint64_t nth_fail = fail_count.fetch_add(1, std::memory_order_relaxed) + 1;
-                const uint64_t nth_timeout =
-                    result.timed_out
-                        ? wall_timeout_count.fetch_add(1, std::memory_order_relaxed) + 1
-                        : 0;
-                if (nth_fail <= 5 || (result.timed_out && nth_timeout <= 3)) {
-                    // url is the request URL (often the global redirector + LFN). Log the
-                    // resolved DataServer host and basename only — not the full path.
-                    const char* ds =
-                        result.data_server.empty() ? "(unknown)" : result.data_server.c_str();
-                    std::string file = "(unknown)";
-                    if (!result.url.empty()) {
-                        const auto slash = result.url.rfind('/');
-                        file = slash == std::string::npos ? result.url : result.url.substr(slash + 1);
-                        if (file.empty()) file = "(unknown)";
-                    }
-                    XRDHOVER_LOG_ERR(
-                        "session error: %s data_server=%s file=%s "
-                        "bytes_read=%" PRIu64 " ops=%" PRIu64 " open_ms=%.0f total_s=%.1f",
-                        result.error.c_str(), ds, file.c_str(), result.bytes_read, result.ops,
-                        result.open_ms, result.total_s);
-                }
-            }
-
-            if (result.bytes_read > charged) {
-                const uint64_t extra = result.bytes_read - charged;
-                (void)bucket.TryAcquire(extra);
-            } else if (result.bytes_read < charged) {
-                bucket.Refund(charged - result.bytes_read);
-            }
-
-            live.fetch_sub(1, std::memory_order_relaxed);
-            registry.SetInflight(live.load(std::memory_order_relaxed), inflight.peak());
-            inflight.Release();
-        });
+    stop_pace.store(true, std::memory_order_release);
+    pace_cv.notify_all();
+    {
+        std::lock_guard<std::mutex> lock(pace_mu);
+        for (auto& s : ready) FileSessionCloseNow(s);
+        ready.clear();
     }
 
     // Drain wait: see kDrainWaitCapSec / kDrainTimeoutGraceSec in run_config.hh.

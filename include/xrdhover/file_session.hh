@@ -3,9 +3,12 @@
 
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
 
 namespace xrdhover {
+
+class FileSession;
 
 // Input for one Open → Stat → Read/VectorRead loop → Close session.
 struct FileSessionOptions {
@@ -16,9 +19,19 @@ struct FileSessionOptions {
     uint16_t vector_chunks = 0;     // >0: issue VectorReads of N chunks per op
     bool random_offset = false;     // per-op random offsets (seeded)
     uint64_t offset_seed = 0;       // RNG seed for random_offset
-    // Soft wall clock for the whole session (0 = disabled). A shared deadline
-    // watchdog aborts via Close so a dead reconnect cannot pin a worker for minutes.
+    // Per-op wall clock (0 = disabled). Re-armed on each XrdCl submit so token
+    // wait does not count. A shared watchdog aborts via Close.
     double wall_timeout_s = 0.0;
+};
+
+// When paced, the run thread pays tokens then Open; OnStat issues the first
+// Read. Later Reads are enqueued via on_ready for the engine to IssueNext.
+struct FileSessionPacing {
+    bool paced = false;
+    uint64_t prepaid_op_bytes = 0;
+    std::function<void(std::shared_ptr<FileSession>)> on_ready;
+    std::function<void(uint64_t bytes)> on_refund;
+    std::function<void(double op_seconds)> on_read_op;
 };
 
 // Client-side timings and counters from one completed (or failed) session.
@@ -53,14 +66,23 @@ struct FileSessionResult {
 
 using FileSessionDone = std::function<void(FileSessionResult)>;
 
-// Run one async file session; blocks until Close (or failure).
+uint64_t SessionOpBytes(const FileSessionOptions& opts);
+
+// Run one async file session; blocks until Close (or failure). Unpaced.
 FileSessionResult RunFileSession(const FileSessionOptions& opts);
 
 // Fire-and-forget: submit Open and return immediately. Invokes on_done from an
 // XrdCl worker thread when the session finishes. The session holds a shared_ptr
 // self-reference until it completes and all XrdCl callbacks have run, then
 // releases itself. on_done must be safe to call from that thread.
-void StartFileSession(const FileSessionOptions& opts, FileSessionDone on_done);
+void StartFileSession(const FileSessionOptions& opts, FileSessionDone on_done,
+                      FileSessionPacing pacing = {});
+
+// Engine thread (after taking tokens for a continuation Read).
+void FileSessionIssueNext(const std::shared_ptr<FileSession>& session);
+uint64_t FileSessionNextOpBytes(const std::shared_ptr<FileSession>& session);
+void FileSessionCloseNow(const std::shared_ptr<FileSession>& session);
+bool FileSessionIsCompleted(const std::shared_ptr<FileSession>& session);
 
 // Stop the shared session-deadline thread. Call after draining sessions (e.g.
 // end of `run`) so process exit does not race the watchdog.

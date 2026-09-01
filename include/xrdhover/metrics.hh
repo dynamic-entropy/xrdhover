@@ -78,6 +78,7 @@ struct MetricsSnapshot {
     HistogramSnapshot open_seconds;
     HistogramSnapshot ttfb_seconds;
     HistogramSnapshot read_seconds;
+    HistogramSnapshot read_op_seconds;
     HistogramSnapshot redirects_per_open;
 
     std::map<std::string, uint64_t> errors_by_class;
@@ -127,6 +128,8 @@ public:
     void ObserveSessionOk(uint64_t bytes, uint64_t ops, double open_s, double ttfb_s, double read_s,
                           double redirects, const std::string& data_server = {},
                           const std::string& cms_site = {});
+    // Per-Read issue→complete latency (excludes token-queue wait).
+    void ObserveReadOp(double seconds);
     void ObserveSessionFail(ErrorClass error_class, const std::string& data_server = {},
                             const std::string& cms_site = {});
     // XrdCl Error-level log lines (may not fail a session — soft faults).
@@ -169,6 +172,7 @@ private:
     Histogram open_seconds_;
     Histogram ttfb_seconds_;
     Histogram read_seconds_;
+    Histogram read_op_seconds_;
     Histogram redirects_per_open_;
 
     std::array<std::atomic<uint64_t>, kErrorClassCount> errors_by_class_{};

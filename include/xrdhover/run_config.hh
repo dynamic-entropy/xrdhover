@@ -68,14 +68,9 @@ const char* PatternTypeName(PatternType t);
 //   floor  = kAutoMaxFloorChunks × chunk_size
 //   ceil   = min(target_rate × kRateHeadroomSec, kAutoMaxHardCapBytes)
 //
-// Pre-Stat token charge  (EstimateSessionCharge):
-//   max_bytes if set; else kEstimateChargeFullChunks × chunk.
-//   Vector sessions charge at least one VectorRead op.
-//
-// Token-bucket burst  (ComputeBucketBurst):
-//   max(max_inflight × charge, target_rate × kRateHeadroomSec, charge)
-//   Intentional: admits a full max_inflight pipeline immediately, so achieved
-//   rate can briefly overshoot --rate at start or after stalls.
+// Token-bucket capacity  (ComputeBucketCapacity):
+//   one Read (chunk_size) or one VectorRead (chunk × vector_chunks).
+//   Refill is target_rate. Inflight grows while Reads are outstanding.
 //
 // End-of-run drain wait  (RunEngine):
 //   min(kDrainWaitCapSec, session_timeout_s + kDrainTimeoutGraceSec)
@@ -84,9 +79,7 @@ const char* PatternTypeName(PatternType t);
 inline constexpr double kAutoMaxAmortizeSec = 8.0;
 inline constexpr uint32_t kAutoMaxFloorChunks = 4;
 inline constexpr uint64_t kAutoMaxHardCapBytes = 32ull * 1000 * 1000;  // 32 MB (SI)
-inline constexpr uint32_t kEstimateChargeFullChunks = 16;
-// Seconds of target_rate used as (a) auto max_bytes aggregate cap and
-// (b) minimum token-bucket headroom beyond one pipeline of charges.
+// Seconds of target_rate used as the auto max_bytes aggregate cap.
 inline constexpr double kRateHeadroomSec = 2.0;
 inline constexpr double kDrainWaitCapSec = 120.0;
 inline constexpr double kDrainTimeoutGraceSec = 15.0;
@@ -94,12 +87,11 @@ inline constexpr double kDrainTimeoutGraceSec = 15.0;
 // Per-session byte budget for --max-bytes auto. Requires target_rate_bytes_per_s > 0.
 uint64_t ComputeAutoMaxBytes(const RunConfig& cfg);
 
-// Estimated per-session token charge before Stat knows the real file size.
-// Shared by Scheduler (Acquire) and ComputeBucketBurst.
-uint64_t EstimateSessionCharge(const RunConfig& cfg, bool use_vector);
+// Bytes charged for one I/O (Read or VectorRead).
+uint64_t ComputeOpBytes(const RunConfig& cfg, bool use_vector);
 
-// Token-bucket burst capacity from the rate policy above.
-uint64_t ComputeBucketBurst(const RunConfig& cfg);
+// Token-bucket capacity: one I/O. Vector/mixed use a VectorRead-sized op.
+uint64_t ComputeBucketCapacity(const RunConfig& cfg);
 
 // If max_bytes_auto and rate > 0, fill max_bytes from rate/max_inflight.
 // Uncapped (target_rate_bytes_per_s == 0) requires explicit max_bytes > 0 — throws

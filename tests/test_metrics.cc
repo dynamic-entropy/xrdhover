@@ -51,6 +51,8 @@ TEST(MetricsRegistry, SessionOkAndFail) {
     r.SetLabels("run1", "job1", "default", "root://localhost/");
     r.SetConfigGauges(1024 * 1024, 8);
     r.ObserveSessionOk(1000, 2, 0.01, 0.02, 0.5, 1.0, "ds1.example:1094");
+    r.ObserveReadOp(0.01);
+    r.ObserveReadOp(0.02);
     r.ObserveSessionFail(ErrorClass::Connection, "ds1.example:1094");
     r.SetInflight(3, 5);
     r.SampleProc();
@@ -66,6 +68,7 @@ TEST(MetricsRegistry, SessionOkAndFail) {
     EXPECT_EQ(s.max_inflight, 8u);
     EXPECT_EQ(s.errors_by_class.at("connection"), 1u);
     EXPECT_EQ(s.open_seconds.count, 1u);
+    EXPECT_EQ(s.read_op_seconds.count, 2u);
     EXPECT_GE(s.cpu_seconds_total, 0.0);
 
     ASSERT_EQ(s.by_data_server.size(), 1u);

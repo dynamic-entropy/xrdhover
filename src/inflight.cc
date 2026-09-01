@@ -14,6 +14,14 @@ bool InFlightSemaphore::AcquireUntil(std::chrono::steady_clock::time_point deadl
     return true;
 }
 
+bool InFlightSemaphore::TryAcquire() {
+    std::lock_guard<std::mutex> lock(mu_);
+    if (current_ >= max_) return false;
+    ++current_;
+    peak_ = std::max(peak_, current_);
+    return true;
+}
+
 void InFlightSemaphore::Release() {
     {
         std::lock_guard<std::mutex> lock(mu_);

@@ -43,29 +43,19 @@ uint64_t ComputeAutoMaxBytes(const RunConfig& cfg) {
     return std::max(aligned, chunk);
 }
 
-uint64_t EstimateSessionCharge(const RunConfig& cfg, bool use_vector) {
-    uint64_t charge;
-    if (cfg.max_bytes > 0) {
-        charge = cfg.max_bytes;
-    } else {
-        charge = static_cast<uint64_t>(cfg.chunk_size) * kEstimateChargeFullChunks;
-    }
+uint64_t ComputeOpBytes(const RunConfig& cfg, bool use_vector) {
+    const uint64_t chunk = std::max<uint64_t>(cfg.chunk_size, 1);
     if (use_vector) {
-        charge = std::max(charge, static_cast<uint64_t>(cfg.chunk_size) *
-                                      std::max<uint16_t>(1, cfg.vector_chunks));
+        return chunk * std::max<uint16_t>(1, cfg.vector_chunks);
     }
-    return charge;
+    return chunk;
 }
 
-uint64_t ComputeBucketBurst(const RunConfig& cfg) {
+uint64_t ComputeBucketCapacity(const RunConfig& cfg) {
     if (cfg.target_rate_bytes_per_s == 0) return 0;
     const bool may_vector =
         cfg.pattern == PatternType::Vector || cfg.pattern == PatternType::Mixed;
-    const uint64_t charge = EstimateSessionCharge(cfg, may_vector);
-    const uint64_t pipeline = charge * std::max(cfg.max_inflight, 1u);
-    const uint64_t headroom =
-        static_cast<uint64_t>(static_cast<double>(cfg.target_rate_bytes_per_s) * kRateHeadroomSec);
-    return std::max({pipeline, headroom, charge});
+    return ComputeOpBytes(cfg, may_vector);
 }
 
 void ResolveRunConfig(RunConfig& cfg) {

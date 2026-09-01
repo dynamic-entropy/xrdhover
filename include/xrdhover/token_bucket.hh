@@ -8,9 +8,11 @@
 namespace xrdhover {
 
 // Bytes/sec token bucket. Thread-safe. rate_bytes_per_s == 0 → uncapped.
+// capacity_bytes is the maximum stored tokens (start full). Must be >= one I/O
+// or Acquire of that I/O never succeeds.
 class TokenBucket {
    public:
-    explicit TokenBucket(uint64_t rate_bytes_per_s, uint64_t burst_bytes = 0);
+    explicit TokenBucket(uint64_t rate_bytes_per_s, uint64_t capacity_bytes = 0);
 
     // Non-blocking take. Returns true if n tokens were taken.
     bool TryAcquire(uint64_t n);
@@ -20,7 +22,11 @@ class TokenBucket {
 
     void Refund(uint64_t n);
 
+    // Seconds until n tokens are available (0 if already). Huge if n > capacity.
+    double SecondsUntil(uint64_t n);
+
     uint64_t rate_bytes_per_s() const { return rate_bytes_per_s_; }
+    uint64_t capacity_bytes() const { return capacity_; }
 
    private:
     void RefillUnlocked(std::chrono::steady_clock::time_point now);

@@ -136,8 +136,15 @@ std::string EncodePrometheusText(const MetricsSnapshot& snap) {
                 snap.achieved_rate_bytes);
     AppendHistogram(o, "xrdhover_open_seconds", "File open latency including redirects", L,
                     snap.open_seconds);
-    AppendHistogram(o, "xrdhover_ttfb_seconds", "Time from open to first byte", L, snap.ttfb_seconds);
-    AppendHistogram(o, "xrdhover_read_seconds", "Per-session read phase duration", L, snap.read_seconds);
+    AppendHistogram(o, "xrdhover_ttfb_seconds",
+                    "Time from first Read submit to first byte (excludes token wait)", L,
+                    snap.ttfb_seconds);
+    AppendHistogram(o, "xrdhover_read_seconds",
+                    "Per-session sum of Read issue-to-complete times (excludes token wait)", L,
+                    snap.read_seconds);
+    AppendHistogram(o, "xrdhover_read_op_seconds",
+                    "Per-Read issue-to-complete latency (application RTT; excludes token wait)", L,
+                    snap.read_op_seconds);
     AppendHistogram(o, "xrdhover_redirects_per_open", "Redirect hop count per open", L,
                     snap.redirects_per_open);
 
