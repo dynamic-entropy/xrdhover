@@ -17,7 +17,7 @@ TEST(PromEncode, ContainsCoreSeriesAndHistogramBuckets) {
     reg.SetConfigGauges(10 * 1024 * 1024, 4);
     reg.ObserveSessionOk(1024, 2, 0.01, 0.02, 0.5, 1.0, "srv-a:1094");
     reg.ObserveSessionFail(ErrorClass::Timeout, "srv-a:1094");
-    reg.SetInflight(1, 2);
+    reg.SetInflight(1);
     reg.SampleProc();
 
     auto snap1 = reg.Snapshot(1.25);
@@ -43,11 +43,10 @@ TEST(PromEncode, ContainsCoreSeriesAndHistogramBuckets) {
     EXPECT_NE(text.find("class=\"timeout\""), std::string::npos);
     EXPECT_NE(text.find("xrdhover_target_rate_bytes{"), std::string::npos);
     EXPECT_NE(text.find("xrdhover_achieved_rate_bytes{"), std::string::npos);
-    EXPECT_NE(text.find("xrdhover_endpoint_bytes_total{"), std::string::npos);
-    EXPECT_NE(text.find("xrdhover_endpoint_achieved_rate_bytes{"), std::string::npos);
-    EXPECT_NE(text.find("data_server=\"srv-a:1094\""), std::string::npos);
-    EXPECT_NE(text.find("data_server=\"srv-b:1094\""), std::string::npos);
-    EXPECT_NE(text.find("xrdhover_endpoint_sessions_total{"), std::string::npos);
+    EXPECT_NE(text.find("xrdhover_inflight_reads{"), std::string::npos);
+    EXPECT_NE(text.find("xrdhover_max_inflight{"), std::string::npos);
+    EXPECT_NE(text.find("xrdhover_site_sessions_total{"), std::string::npos);
+    EXPECT_NE(text.find("cms_site=\"unmapped\""), std::string::npos);
 }
 
 TEST(PromEncode, SourceDestFromRunId) {
@@ -66,10 +65,11 @@ TEST(PromEncode, AllMetricNamesUseXrdhoverPrefix) {
     reg.ObserveSessionOk(1024, 2, 0.01, 0.02, 0.5, 1.0, "srv-a:1094", "T2_UK_SGrid");
     reg.ObserveSessionFail(ErrorClass::Timeout, "srv-a:1094", "T2_UK_SGrid");
     reg.ObserveSoftFault("connection");
-    reg.SetInflight(1, 2);
+    reg.SetInflight(1);
     reg.SampleProc();
 
     const std::string text = EncodePrometheusText(reg.Snapshot(1.25));
+    EXPECT_NE(text.find("cms_site=\"T2_UK_SGrid\""), std::string::npos);
     std::istringstream in(text);
     std::string line;
     std::vector<std::string> names;

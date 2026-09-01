@@ -54,7 +54,7 @@ TEST(MetricsRegistry, SessionOkAndFail) {
     r.ObserveReadOp(0.01);
     r.ObserveReadOp(0.02);
     r.ObserveSessionFail(ErrorClass::Connection, "ds1.example:1094");
-    r.SetInflight(3, 5);
+    r.SetInflight(3);
     r.SampleProc();
 
     auto s = r.Snapshot(1.0);
@@ -64,7 +64,7 @@ TEST(MetricsRegistry, SessionOkAndFail) {
     EXPECT_EQ(s.sessions_ok, 1u);
     EXPECT_EQ(s.sessions_fail, 1u);
     EXPECT_EQ(s.read_ops_total, 2u);
-    EXPECT_EQ(s.peak_inflight, 5u);
+    EXPECT_EQ(s.inflight_reads, 3u);
     EXPECT_EQ(s.max_inflight, 8u);
     EXPECT_EQ(s.errors_by_class.at("connection"), 1u);
     EXPECT_EQ(s.open_seconds.count, 1u);
@@ -78,7 +78,9 @@ TEST(MetricsRegistry, SessionOkAndFail) {
     EXPECT_EQ(ep.sessions_fail, 1u);
     EXPECT_EQ(ep.errors_by_class.at("connection"), 1u);
     EXPECT_TRUE(ep.cms_site.empty());
-    EXPECT_TRUE(s.by_cms_site.empty());
+    ASSERT_EQ(s.by_cms_site.size(), 1u);
+    EXPECT_EQ(s.by_cms_site.at(xrdhover::kUnmappedCmsSite).sessions_ok, 1u);
+    EXPECT_EQ(s.by_cms_site.at(xrdhover::kUnmappedCmsSite).sessions_fail, 1u);
 }
 
 TEST(MetricsRegistry, AttributionWithSiteMap) {
@@ -102,11 +104,13 @@ TEST(MetricsRegistry, AttributionWithSiteMap) {
     EXPECT_EQ(s.by_data_server.at("ds-b.example.org:1094").cms_site, "T2_BB");
     EXPECT_EQ(s.by_data_server.at("unmapped.example:1094").cms_site, "");
 
-    ASSERT_EQ(s.by_cms_site.size(), 2u);
+    ASSERT_EQ(s.by_cms_site.size(), 3u);
     EXPECT_EQ(s.by_cms_site.at("T2_AA").bytes_read, 150u);
     EXPECT_EQ(s.by_cms_site.at("T2_AA").sessions_ok, 2u);
     EXPECT_EQ(s.by_cms_site.at("T2_BB").bytes_read, 200u);
     EXPECT_EQ(s.by_cms_site.at("T2_BB").sessions_fail, 1u);
+    EXPECT_EQ(s.by_cms_site.at(xrdhover::kUnmappedCmsSite).bytes_read, 10u);
+    EXPECT_EQ(s.by_cms_site.at(xrdhover::kUnmappedCmsSite).sessions_ok, 1u);
 }
 
 TEST(MetricsRegistry, EmptyDataServerUsesUnknown) {
@@ -115,6 +119,7 @@ TEST(MetricsRegistry, EmptyDataServerUsesUnknown) {
     auto s = r.Snapshot(1.0);
     ASSERT_TRUE(s.by_data_server.count(xrdhover::kUnknownDataServer));
     EXPECT_EQ(s.by_data_server.at(xrdhover::kUnknownDataServer).sessions_fail, 1u);
+    EXPECT_EQ(s.by_cms_site.at(xrdhover::kUnmappedCmsSite).sessions_fail, 1u);
 }
 
 TEST(ProcessSample, ProcSelfAvailable) {

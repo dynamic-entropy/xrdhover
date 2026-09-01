@@ -177,9 +177,8 @@ void MetricsRegistry::ObserveSoftFault(const std::string& kind) {
     soft_faults_by_kind_[idx].fetch_add(1, std::memory_order_relaxed);
 }
 
-void MetricsRegistry::SetInflight(uint64_t live, uint64_t peak) {
+void MetricsRegistry::SetInflight(uint64_t live) {
     inflight_reads_.store(live, std::memory_order_relaxed);
-    peak_inflight_.store(peak, std::memory_order_relaxed);
 }
 
 void MetricsRegistry::SetCmsSite(const std::string& data_server, const std::string& cms_site) {
@@ -227,7 +226,6 @@ MetricsSnapshot MetricsRegistry::Snapshot(double wall_s) {
     s.read_op_seconds = read_op_seconds_.Snapshot();
     s.redirects_per_open = redirects_per_open_.Snapshot();
     s.inflight_reads = inflight_reads_.load(std::memory_order_relaxed);
-    s.peak_inflight = peak_inflight_.load(std::memory_order_relaxed);
     s.max_inflight = max_inflight_.load(std::memory_order_relaxed);
     s.cpu_seconds_total = static_cast<double>(cpu_us_.load(std::memory_order_relaxed)) / 1e6;
     s.process_resident_memory_bytes = rss_bytes_.load(std::memory_order_relaxed);
@@ -251,9 +249,9 @@ MetricsSnapshot MetricsRegistry::Snapshot(double wall_s) {
     }
     for (const auto& kv : s.by_data_server) {
         const EndpointStats& ep = kv.second;
-        if (ep.cms_site.empty()) continue;
-        SiteStats& site = s.by_cms_site[ep.cms_site];
-        site.cms_site = ep.cms_site;
+        const std::string site_key = ep.cms_site.empty() ? kUnmappedCmsSite : ep.cms_site;
+        SiteStats& site = s.by_cms_site[site_key];
+        site.cms_site = site_key;
         site.bytes_read += ep.bytes_read;
         site.sessions_ok += ep.sessions_ok;
         site.sessions_fail += ep.sessions_fail;

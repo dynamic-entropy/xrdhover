@@ -30,6 +30,9 @@ inline constexpr size_t kHistogramBuckets = kLatencyBucketBounds.size() + 1;  //
 
 // Sentinel key when FileSessionResult::data_server is empty.
 inline constexpr const char* kUnknownDataServer = "unknown";
+// CMS-site rollup key when sitename is missing. Prom site series use this so
+// mapped + unmapped sum to the link totals.
+inline constexpr const char* kUnmappedCmsSite = "unmapped";
 
 struct HistogramSnapshot {
     std::vector<double> bounds;       // finite upper bounds (excludes +Inf)
@@ -51,7 +54,8 @@ struct EndpointStats {
     std::map<std::string, uint64_t> errors_by_class;
 };
 
-// Rollup of EndpointStats that share the same cms_site (mapped only).
+// Rollup of EndpointStats that share the same cms_site. Unmapped servers use
+// kUnmappedCmsSite so site series sum to the link.
 struct SiteStats {
     std::string cms_site;
     uint64_t bytes_read = 0;
@@ -84,12 +88,12 @@ struct MetricsSnapshot {
     std::map<std::string, uint64_t> errors_by_class;
     std::map<std::string, uint64_t> soft_faults_by_kind;
 
-    // Independent keys — no top-N / "other" collapsing.
+    // Disk-level detail for result.json / CLI. Not exported to Prometheus
+    // (cardinality; the live view is the link + cms_site).
     std::map<std::string, EndpointStats> by_data_server;
     std::map<std::string, SiteStats> by_cms_site;
 
     uint64_t inflight_reads = 0;
-    uint64_t peak_inflight = 0;
     uint32_t max_inflight = 0;
 
     double cpu_seconds_total = 0.0;
@@ -135,7 +139,7 @@ public:
     // XrdCl Error-level log lines (may not fail a session — soft faults).
     // `kind` should come from ClassifySoftFaultMessage; unknown kinds count as "other".
     void ObserveSoftFault(const std::string& kind);
-    void SetInflight(uint64_t live, uint64_t peak);
+    void SetInflight(uint64_t live);
 
     // Attach/replace cms_site for an already-seen data_server (safe off the XrdCl
     // callback path — used after deferred sitename queries).
@@ -167,7 +171,6 @@ private:
     std::atomic<uint64_t> target_rate_bytes_{0};
     std::atomic<uint32_t> max_inflight_{0};
     std::atomic<uint64_t> inflight_reads_{0};
-    std::atomic<uint64_t> peak_inflight_{0};
 
     Histogram open_seconds_;
     Histogram ttfb_seconds_;

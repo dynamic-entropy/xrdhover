@@ -168,8 +168,6 @@ std::string EncodePrometheusText(const MetricsSnapshot& snap) {
 
     AppendGaugeU64(o, "xrdhover_inflight_reads", "Currently in-flight file sessions", L,
                    snap.inflight_reads);
-    AppendGaugeU64(o, "xrdhover_peak_inflight", "Peak in-flight file sessions this run", L,
-                   snap.peak_inflight);
     AppendGaugeU64(o, "xrdhover_max_inflight", "Configured max in-flight sessions", L,
                    snap.max_inflight);
     AppendGauge(o, "xrdhover_cpu_seconds_total", "Process CPU time (utime+stime) in seconds", L,
@@ -178,61 +176,17 @@ std::string EncodePrometheusText(const MetricsSnapshot& snap) {
                    snap.process_resident_memory_bytes);
     AppendGauge(o, "xrdhover_wall_seconds", "Elapsed wall time of the run so far", L, snap.wall_s);
 
-    if (!snap.by_data_server.empty()) {
-        AppendHelpType(o, "xrdhover_endpoint_bytes_total",
-                       "Bytes read attributed to resolved DataServer", "counter");
-        AppendHelpType(o, "xrdhover_endpoint_achieved_rate_bytes",
-                       "Cumulative bytes/wall for this DataServer "
-                       "(same definition as xrdhover_achieved_rate_bytes)",
-                       "gauge");
-        AppendHelpType(o, "xrdhover_endpoint_sessions_total",
-                       "Completed FileSessions attributed to resolved DataServer (not TCP connections)",
-                       "counter");
-        bool any_ep_errors = false;
-        for (const auto& kv : snap.by_data_server) {
-            if (!kv.second.errors_by_class.empty()) {
-                any_ep_errors = true;
-                break;
-            }
-        }
-        if (any_ep_errors) {
-            AppendHelpType(o, "xrdhover_endpoint_errors_total",
-                           "Hard failures by DataServer and class", "counter");
-        }
-        for (const auto& kv : snap.by_data_server) {
-            const EndpointStats& ep = kv.second;
-            std::ostringstream el;
-            el << L << ",data_server=\"" << EscapeLabel(ep.data_server) << "\"";
-            if (!ep.cms_site.empty()) {
-                el << ",cms_site=\"" << EscapeLabel(ep.cms_site) << "\"";
-            }
-            const std::string EL = el.str();
-            const double ep_rate =
-                snap.wall_s > 0.0 ? static_cast<double>(ep.bytes_read) / snap.wall_s : 0.0;
-            o << "xrdhover_endpoint_bytes_total{" << EL << "} " << ep.bytes_read << '\n';
-            {
-                char buf[64];
-                std::snprintf(buf, sizeof(buf), "%.9g", ep_rate);
-                o << "xrdhover_endpoint_achieved_rate_bytes{" << EL << "} " << buf << '\n';
-            }
-            o << "xrdhover_endpoint_sessions_total{" << EL << ",result=\"ok\"} " << ep.sessions_ok
-              << '\n';
-            o << "xrdhover_endpoint_sessions_total{" << EL << ",result=\"fail\"} " << ep.sessions_fail
-              << '\n';
-            for (const auto& err : ep.errors_by_class) {
-                o << "xrdhover_endpoint_errors_total{" << EL << ",class=\"" << EscapeLabel(err.first)
-                  << "\"} " << err.second << '\n';
-            }
-        }
-    }
-
     if (!snap.by_cms_site.empty()) {
         AppendHelpType(o, "xrdhover_site_bytes_total",
-                       "Bytes read attributed to CMS site (mapped servers only)", "counter");
+                       "Bytes read attributed to CMS site (unmapped uses cms_site=\"unmapped\")",
+                       "counter");
         AppendHelpType(o, "xrdhover_site_achieved_rate_bytes",
-                       "Cumulative bytes/wall for this CMS site", "gauge");
+                       "Cumulative bytes/wall for this CMS site "
+                       "(same definition as xrdhover_achieved_rate_bytes)",
+                       "gauge");
         AppendHelpType(o, "xrdhover_site_sessions_total",
-                       "Completed FileSessions attributed to CMS site", "counter");
+                       "Completed FileSessions attributed to CMS site (not TCP connections)",
+                       "counter");
         for (const auto& kv : snap.by_cms_site) {
             const SiteStats& site = kv.second;
             const std::string SL =

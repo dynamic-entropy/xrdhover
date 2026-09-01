@@ -97,12 +97,15 @@ Workload `run` checks the x509 proxy: not group/other-writable, remaining TTL
 
 ## Metrics
 
-Pushgateway job default is `xrdhover`. Scrape
-`xrdhover_achieved_rate_bytes` (bytes / wall; cumulative) against
-`xrdhover_target_rate_bytes` (token-bucket refill). Per-Read RTT is
-`xrdhover_read_op_seconds` (issue→complete; token wait is not included).
-The link label is
-`src_dst` (`SOURCE__DEST`). Pushgateway grouping is `src_dst` + `replica`
+Pushgateway job default is `xrdhover`. The live view is a **link**
+(`src_dst` = `SOURCE__DEST`): scrape `xrdhover_achieved_rate_bytes`
+(bytes / wall; cumulative) against `xrdhover_target_rate_bytes`
+(token-bucket refill). Inflight is `xrdhover_inflight_reads` vs
+`xrdhover_max_inflight`. CMS-site attribution is `xrdhover_site_*` (`cms_site`,
+including `unmapped`). Disk hosts are not Prometheus series; they live in
+`result.json`. FileSessions rate is PromQL `rate(xrdhover_sessions_total[2m])`.
+Per-Read RTT is `xrdhover_read_op_seconds` (issue→complete; token wait is
+not included). Pushgateway grouping is `src_dst` + `replica`
 (`sinks.job_id`), not `instance`. `replica` exists so N jobs on one link do
 not overwrite each other; Grafana sums it away (not a variable or legend).
 See [include/xrdhover/push_group.hh](include/xrdhover/push_group.hh).

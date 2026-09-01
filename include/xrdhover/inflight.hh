@@ -22,13 +22,11 @@ class InFlightSemaphore {
     void Release();
 
     uint32_t current() const;
-    uint32_t peak() const;
     uint32_t max() const { return max_; }
 
    private:
     const uint32_t max_;
     uint32_t current_ = 0;
-    uint32_t peak_ = 0;
     mutable std::mutex mu_;
     std::condition_variable cv_;
 };

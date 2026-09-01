@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "xrdhover D1 \u2014 Challenge Overview: achieved throughput by source\u2013dest, errors, inflight, latency, plus federation attribution (achieved rate and FileSessions by CMS site / DataServer).",
+  "description": "xrdhover D1 \u2014 Challenge Overview: achieved throughput by source\u2013dest, errors, inflight, latency, plus CMS-site attribution (achieved rate and FileSessions rate).",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -422,7 +422,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Live in-flight sessions vs configured max_inflight.",
+      "description": "Live in-flight FileSessions vs configured max_inflight. Legend last and max over the selected window.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -478,15 +478,6 @@
           "expr": "sum by (source, dest, src_dst) (xrdhover_max_inflight{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))",
           "legendFormat": "max_inflight {{src_dst}}",
           "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum by (source, dest, src_dst) (xrdhover_peak_inflight{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))",
-          "legendFormat": "peak {{src_dst}}",
-          "refId": "C"
         }
       ],
       "title": "In-flight vs max_inflight",
@@ -913,7 +904,7 @@
         "y": 42
       },
       "id": 103,
-      "title": "Federation attribution",
+      "title": "Link attribution",
       "type": "row"
     },
     {
@@ -921,7 +912,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Per CMS sitename: bits/s (Prom bytes/wall \u00d7 8; same definition as overall achieved). Stack \u2248 D1 total when traffic is mapped.",
+      "description": "Where the link's bytes landed (CMS sitename). bits/s = Prom bytes/wall \u00d7 8. Stack \u2248 the link total. cms_site=unmapped means sitename was missing.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -944,7 +935,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 24,
         "x": 0,
         "y": 43
       },
@@ -985,84 +976,21 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Per DataServer: bits/s (Prom bytes/wall \u00d7 8). With limited max_inflight only a few servers are hot \u2014 idle series near zero is normal.",
+      "description": "Completed FileSessions (Open\u2192\u2026\u2192Close) per second on the link \u2014 not live inflight, not TCP connections. rate() over 2m.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
-            "axisLabel": "bit/s",
-            "axisSoftMin": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "showPoints": "never",
-            "stacking": {
-              "group": "A",
-              "mode": "normal"
-            }
-          },
-          "unit": "bps"
-        }
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 43
-      },
-      "id": 12,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "last"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "(sum by (data_server, source, dest, src_dst) (xrdhover_endpoint_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))) * 8",
-          "legendFormat": "{{src_dst}} {{data_server}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Achieved rate by DataServer",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "description": "Completed FileSessions (Open\u2192\u2026\u2192Close) per CMS site \u2014 not TCP connections.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
+            "axisLabel": "sessions/s",
             "axisSoftMin": 0,
             "drawStyle": "line",
             "fillOpacity": 10,
             "lineWidth": 2,
             "showPoints": "never"
           },
-          "unit": "short"
+          "unit": "ops"
         }
       },
       "gridPos": {
@@ -1075,7 +1003,8 @@
       "options": {
         "legend": {
           "calcs": [
-            "last"
+            "last",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "bottom",
@@ -1092,12 +1021,12 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (cms_site, result, source, dest, src_dst) (xrdhover_site_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))",
-          "legendFormat": "{{src_dst}} {{cms_site}} {{result}}",
+          "expr": "sum by (result, source, dest, src_dst) (rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))",
+          "legendFormat": "{{src_dst}} {{result}}",
           "refId": "A"
         }
       ],
-      "title": "FileSessions by CMS site",
+      "title": "FileSessions rate",
       "type": "timeseries"
     },
     {
@@ -1105,20 +1034,21 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Per DataServer: bits/s (Prom bytes/wall \u00d7 8). With limited max_inflight only a few servers are hot \u2014 idle series near zero is normal.",
+      "description": "Same FileSessions rate split by CMS sitename (where the redirector sent the Open). cms_site=unmapped when sitename is missing.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisLabel": "sessions/s",
             "axisSoftMin": 0,
             "drawStyle": "line",
             "fillOpacity": 10,
             "lineWidth": 2,
             "showPoints": "never"
           },
-          "unit": "short"
+          "unit": "ops"
         }
       },
       "gridPos": {
@@ -1131,10 +1061,11 @@
       "options": {
         "legend": {
           "calcs": [
-            "last"
+            "last",
+            "mean"
           ],
           "displayMode": "table",
-          "placement": "right",
+          "placement": "bottom",
           "showLegend": true
         },
         "tooltip": {
@@ -1148,12 +1079,12 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (data_server, result, source, dest, src_dst) (xrdhover_endpoint_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))",
-          "legendFormat": "{{src_dst}} {{data_server}} {{result}}",
+          "expr": "sum by (cms_site, result, source, dest, src_dst) (rate(xrdhover_site_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))",
+          "legendFormat": "{{src_dst}} {{cms_site}} {{result}}",
           "refId": "A"
         }
       ],
-      "title": "FileSessions by DataServer",
+      "title": "FileSessions rate by CMS site",
       "type": "timeseries"
     }
   ],

@@ -207,7 +207,7 @@ int RunEngine(const RunConfig& cfg) {
 
     auto take_snapshot = [&] {
         const auto now = Clock::now();
-        registry.SetInflight(live.load(std::memory_order_relaxed), inflight.peak());
+        registry.SetInflight(live.load(std::memory_order_relaxed));
         const double wall = std::chrono::duration<double>(now - t0).count();
         if (sink || push) registry.SampleProc();
         auto snap = registry.Snapshot(wall);
@@ -311,7 +311,7 @@ int RunEngine(const RunConfig& cfg) {
         }
 
         live.fetch_sub(1, std::memory_order_relaxed);
-        registry.SetInflight(live.load(std::memory_order_relaxed), inflight.peak());
+        registry.SetInflight(live.load(std::memory_order_relaxed));
         inflight.Release();
         pace_cv.notify_one();
     };
@@ -374,7 +374,7 @@ int RunEngine(const RunConfig& cfg) {
         }
 
         live.fetch_add(1, std::memory_order_relaxed);
-        registry.SetInflight(live.load(std::memory_order_relaxed), inflight.peak());
+        registry.SetInflight(live.load(std::memory_order_relaxed));
         FileSessionPacing p = pacing;
         p.prepaid_op_bytes = n;
         StartFileSession(work.session, session_done, std::move(p));
@@ -412,7 +412,7 @@ int RunEngine(const RunConfig& cfg) {
 
     const double elapsed = std::chrono::duration<double>(Clock::now() - t0).count();
     if (sink || push) registry.SampleProc();
-    registry.SetInflight(live.load(std::memory_order_relaxed), inflight.peak());
+    registry.SetInflight(live.load(std::memory_order_relaxed));
     fill_cms_sites();
     const MetricsSnapshot final_snap = registry.Snapshot(elapsed);
 
@@ -460,7 +460,6 @@ int RunEngine(const RunConfig& cfg) {
     if (cfg.target_rate_bytes_per_s) {
         std::printf("target:         %s\n", DescribeTargetRate(cfg).c_str());
     }
-    std::printf("inflight peak:  %" PRIu32 " / %" PRIu32 "\n", inflight.peak(), inflight.max());
     if (sink) std::printf("results:        %s\n", sink->run_dir().c_str());
     if (push) std::printf("pushgateway:    %s\n", cfg.pushgateway_url.c_str());
     if (!final_snap.errors_by_class.empty()) {
@@ -476,7 +475,7 @@ int RunEngine(const RunConfig& cfg) {
         }
     }
 
-    // Console summary is by CMS site. Per-DataServer detail stays in FileSink + D2.
+    // Console summary is by CMS site. Per-DataServer detail stays in result.json.
     if (!final_snap.by_cms_site.empty()) {
         std::printf("by_cms_site:\n");
         for (const auto& kv : final_snap.by_cms_site) {
@@ -500,7 +499,7 @@ int RunEngine(const RunConfig& cfg) {
     }
     if (unmapped_servers > 0) {
         std::printf("unmapped:       %zu data_server(s) bytes=%s ok=%" PRIu64 " fail=%" PRIu64
-                    " (detail: result.json by_data_server / Grafana D1)\n",
+                    " (detail: result.json by_data_server)\n",
                     unmapped_servers, FormatBytes(unmapped_bytes).c_str(), unmapped_ok,
                     unmapped_fail);
         if (cfg.site_map_path.empty() && !cfg.sitename_query) {
@@ -508,9 +507,6 @@ int RunEngine(const RunConfig& cfg) {
         } else if (cfg.site_map_path.empty()) {
             std::printf("hint:          some servers omit sitename; optional --site-map for overrides\n");
         }
-    } else if (final_snap.by_cms_site.empty() && !final_snap.by_data_server.empty()) {
-        std::printf("data_servers:   %zu (no cms_site map hits; detail in result.json / D1)\n",
-                    final_snap.by_data_server.size());
     }
 
     // Join the shared deadline thread before process teardown — a detached

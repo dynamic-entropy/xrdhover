@@ -50,7 +50,6 @@ json SnapshotToJsonl(const MetricsSnapshot& s) {
     j["xrdhover_errors_total"] = s.errors_by_class;
     j["xrdhover_soft_faults_total"] = s.soft_faults_by_kind;
     j["xrdhover_inflight_reads"] = s.inflight_reads;
-    j["xrdhover_peak_inflight"] = s.peak_inflight;
     j["xrdhover_max_inflight"] = s.max_inflight;
     j["xrdhover_cpu_seconds_total"] = s.cpu_seconds_total;
     j["xrdhover_process_resident_memory_bytes"] = s.process_resident_memory_bytes;
@@ -151,7 +150,6 @@ void FileSink::WriteResult(const MetricsSnapshot& snap, double cpu_seconds_at_st
     j["sessions_ok"] = snap.sessions_ok;
     j["sessions_fail"] = snap.sessions_fail;
     j["ops"] = snap.read_ops_total;
-    j["peak_inflight"] = snap.peak_inflight;
     j["max_inflight"] = snap.max_inflight;
     j["errors"] = snap.errors_by_class;
     j["soft_faults"] = snap.soft_faults_by_kind;
