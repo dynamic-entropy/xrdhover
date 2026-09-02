@@ -5,7 +5,9 @@
 
 #include <array>
 #include <cerrno>
+#include <chrono>
 #include <cinttypes>
+#include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -20,10 +22,10 @@ namespace {
 
 namespace fs = std::filesystem;
 
+constexpr int kChirpTimeoutS = 10;
+
 // Fork+exec condor_chirp with the given arguments.  Returns true on exit 0.
-// Timeout: we rely on the child inheriting SIGALRM disposition (none) and
-// waitpid blocking.  condor_chirp itself is fast (<1s) — a 10s alarm is
-// generous enough to catch a stuck shadow.
+// Kills the child after kChirpTimeoutS seconds if it hasn't exited.
 bool ForkExecChirp(const std::string& binary, const char* const argv[], int argc) {
     const pid_t pid = fork();
     if (pid < 0) {
@@ -31,12 +33,10 @@ bool ForkExecChirp(const std::string& binary, const char* const argv[], int argc
         return false;
     }
     if (pid == 0) {
-        // Child: redirect stdout/stderr to /dev/null.
         if (freopen("/dev/null", "w", stdout) == nullptr ||
             freopen("/dev/null", "w", stderr) == nullptr) {
             _exit(126);
         }
-        // Build null-terminated argv for execv.
         std::vector<const char*> av;
         av.push_back(binary.c_str());
         for (int i = 0; i < argc; ++i) av.push_back(argv[i]);
@@ -44,15 +44,30 @@ bool ForkExecChirp(const std::string& binary, const char* const argv[], int argc
         execv(binary.c_str(), const_cast<char* const*>(av.data()));
         _exit(127);
     }
-    int status = 0;
-    while (waitpid(pid, &status, 0) < 0) {
-        if (errno != EINTR) {
+
+    // Poll with timeout instead of blocking forever.
+    const auto deadline = std::chrono::steady_clock::now() +
+                          std::chrono::seconds(kChirpTimeoutS);
+    for (;;) {
+        int status = 0;
+        pid_t rc = waitpid(pid, &status, WNOHANG);
+        if (rc > 0) {
+            if (WIFEXITED(status) && WEXITSTATUS(status) == 0) return true;
+            return false;
+        }
+        if (rc < 0 && errno != EINTR) {
             XRDHOVER_LOG_ERR("chirp: waitpid failed: %s", std::strerror(errno));
             return false;
         }
+        if (std::chrono::steady_clock::now() >= deadline) {
+            XRDHOVER_LOG_ERR("chirp: child pid %d timed out after %ds, killing",
+                             static_cast<int>(pid), kChirpTimeoutS);
+            kill(pid, SIGKILL);
+            waitpid(pid, nullptr, 0);
+            return false;
+        }
+        usleep(50000);  // 50ms
     }
-    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) return true;
-    return false;
 }
 
 std::string TrimTrailingSlash(std::string s) {
