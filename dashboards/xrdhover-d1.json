@@ -40,7 +40,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Achieved rate (bits/s; Prom gauges are bytes/s \u00d7 8) vs token-bucket target (dashed). Only series with a Pushgateway push in the last 60s are drawn (stale leftover groups vanish). Freshness matches on job+src_dst+replica; display sums replica away so Query A is one series per source\u2013dest. Query B: hold target. Query C: sum of achieved, 0 when idle.",
+      "description": "Per-link achieved (stacked) vs one dashed Target = sum of live job token-buckets (not per-link 200 Mbps). Query C Achieved = sum of Query A. Live jobs with 0 bytes still count in Target and show as a 0 stack slice.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -122,7 +122,10 @@
                 "id": "custom.lineStyle",
                 "value": {
                   "fill": "dash",
-                  "dash": [8, 4]
+                  "dash": [
+                    8,
+                    4
+                  ]
                 }
               },
               {
@@ -134,7 +137,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Total"
+              "options": "Achieved"
             },
             "properties": [
               {
@@ -186,7 +189,8 @@
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "desc"
+          "sort": "desc",
+          "maxHeight": 400
         }
       },
       "targets": [
@@ -195,27 +199,39 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum by (source, dest, src_dst) (xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))) * 8",
+          "expr": "(sum by (source, dest, src_dst) (xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 180))) * 8",
           "legendFormat": "{{src_dst}}",
-          "refId": "A"
+          "refId": "A",
+          "editorMode": "code",
+          "exemplar": false,
+          "instant": false,
+          "range": true
         },
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum by (source, dest, src_dst) (xrdhover_target_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))) * 8",
-          "legendFormat": "{{src_dst}} target",
-          "refId": "B"
+          "expr": "label_replace((sum(xrdhover_target_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 180))) * 8, \"line\", \"Target\", \"\", \"\") or label_replace(vector(0), \"line\", \"Target\", \"\", \"\")",
+          "legendFormat": "{{line}}",
+          "refId": "B",
+          "editorMode": "code",
+          "exemplar": false,
+          "instant": false,
+          "range": true
         },
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "((sum(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))) * 8) or vector(0)",
-          "legendFormat": "Total",
-          "refId": "C"
+          "expr": "label_replace((sum(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 180))) * 8, \"line\", \"Achieved\", \"\", \"\") or label_replace(vector(0), \"line\", \"Achieved\", \"\", \"\")",
+          "legendFormat": "{{line}}",
+          "refId": "C",
+          "editorMode": "code",
+          "exemplar": false,
+          "instant": false,
+          "range": true
         }
       ],
       "title": "Achieved throughput",
@@ -226,7 +242,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Latest live achieved rate (bits/s). Missing or stale Pushgateway group \u2192 0.",
+      "description": "sum(achieved) of jobs with a Pushgateway PUT in the last 180s. Idle / after exit \u2192 0 (or vector(0) at each step). lastNotNull over the dashboard window would keep the last live rate.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -270,7 +286,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -278,8 +294,13 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60)) * 8) or vector(0)",
-          "refId": "A"
+          "expr": "label_replace((sum(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 180)) * 8), \"line\", \"Achieved\", \"\", \"\") or label_replace(vector(0), \"line\", \"Achieved\", \"\", \"\")",
+          "refId": "A",
+          "editorMode": "code",
+          "exemplar": false,
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{line}}"
         }
       ],
       "title": "Achieved rate",
@@ -290,7 +311,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Configured target rate (bits/s), summed across live jobs on the selected links. N jobs per SOURCE__DEST share src_dst and differ by Pushgateway replica (job_id) — replica is not a dashboard series. 0 when no job has pushed in the last 60s.",
+      "description": "sum(target) of jobs with a Pushgateway PUT in the last 180s. After the last push ages out (or DELETE on exit) this is 0, not the last hold.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -333,8 +354,13 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "((sum(xrdhover_target_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))) * 8) or vector(0)",
-          "refId": "A"
+          "expr": "label_replace((sum(xrdhover_target_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 180)) * 8), \"line\", \"Target\", \"\", \"\") or label_replace(vector(0), \"line\", \"Target\", \"\", \"\")",
+          "refId": "A",
+          "editorMode": "code",
+          "exemplar": false,
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{line}}"
         }
       ],
       "title": "Target rate",
@@ -345,7 +371,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "ok / (ok+fail) from session counters.",
+      "description": "ok/(ok+fail) session rate, only for groups that pushed in the last 180s. No live jobs \u2192 0. Stale Pushgateway leftover is not a lingering 100%.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -398,8 +424,13 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\", result=\"ok\"}[5m])) / clamp_min(sum(rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])), 1e-9)",
-          "refId": "A"
+          "expr": "label_replace((sum(rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\", result=\"ok\"}[5m]) and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 180)) / clamp_min(sum(rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 180)), 1e-9)), \"line\", \"Success\", \"\", \"\") or label_replace(vector(0), \"line\", \"Success\", \"\", \"\")",
+          "refId": "A",
+          "editorMode": "code",
+          "exemplar": false,
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{line}}"
         }
       ],
       "title": "Session success rate",
@@ -466,7 +497,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (source, dest, src_dst) (xrdhover_inflight_reads{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))",
+          "expr": "sum by (source, dest, src_dst) (xrdhover_inflight_reads{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 180))",
           "legendFormat": "inflight {{src_dst}}",
           "refId": "A"
         },
@@ -475,7 +506,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (source, dest, src_dst) (xrdhover_max_inflight{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))",
+          "expr": "sum by (source, dest, src_dst) (xrdhover_max_inflight{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 180))",
           "legendFormat": "max_inflight {{src_dst}}",
           "refId": "B"
         }
@@ -887,7 +918,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (source, dest, src_dst) (xrdhover_process_resident_memory_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))",
+          "expr": "sum by (source, dest, src_dst) (xrdhover_process_resident_memory_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 180))",
           "legendFormat": "RSS {{src_dst}}",
           "refId": "A"
         }
@@ -963,7 +994,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum by (cms_site, source, dest, src_dst) (xrdhover_site_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))) * 8",
+          "expr": "(sum by (cms_site, source, dest, src_dst) (xrdhover_site_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"} and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 180))) * 8",
           "legendFormat": "{{src_dst}} {{cms_site}}",
           "refId": "A"
         }
@@ -1021,7 +1052,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (result, source, dest, src_dst) (rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))",
+          "expr": "sum by (result, source, dest, src_dst) (rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 180))",
           "legendFormat": "{{src_dst}} {{result}}",
           "refId": "A"
         }
@@ -1079,7 +1110,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (cms_site, result, source, dest, src_dst) (rate(xrdhover_site_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 60))",
+          "expr": "sum by (cms_site, result, source, dest, src_dst) (rate(xrdhover_site_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, replica) ((time() - push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}) < 180))",
           "legendFormat": "{{src_dst}} {{cms_site}} {{result}}",
           "refId": "A"
         }
@@ -1216,6 +1247,6 @@
   "timezone": "browser",
   "title": "xrdhover / D1 Challenge Overview",
   "uid": "xrdhover-d1",
-  "version": 15,
+  "version": 19,
   "weekStart": ""
 }

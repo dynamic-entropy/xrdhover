@@ -33,6 +33,15 @@ The Inflight panel is live `xrdhover_inflight_reads` vs configured
 `rate(*_bytes_total)` — Pushgateway scrapes make PromQL `rate()` noisy when a
 series idles.
 
+Grafana 12 treats each Prom series as a **data stream**. Achieved rate and
+Target rate stats are range-only `sum()` (one number). Throughput Query B
+is that same target sum (one dashed hold line). Query C is achieved sum.
+Query A is per-link achieved so you can see which `src_dst` is at 0.
+Do not use legend calc `sum` — that integrates one stream over time.
+
+A live job with `target_rate` 200 Mbps and `achieved_rate` 0 is still in
+the target sum and is a 0 slice of achieved. That is payload, not Grafana.
+
 **FileSessions:** plot `rate(xrdhover_sessions_total[2m])` (link) and
 `rate(xrdhover_site_sessions_total[2m])` (CMS site). Those counters have
 stable labels (`src_dst`, `cms_site`, `result`), so `rate()` is the sessions/s
@@ -78,10 +87,17 @@ otherwise keeps old metric names until DELETE):
 DELETE https://xrdprom.cern.ch:2094/metrics/job/xrdhover
 ```
 
-Gauge panels only draw a group when `push_time_seconds` is younger than 60s.
-A `condor_rm` leaves the last Pushgateway PUT in place (no DELETE); without
-that filter the Achieved-rate Value stays at the last number. Wait one scrape
-after the wipe.
+Gauge panels only draw a group when `push_time_seconds` is younger than 180s.
+That window must be greater than `sinks.snapshot_interval` (60s on the N=4
+campaign) and greater than the Prometheus scrape interval (keep scrape at 15s).
+`--persistence.interval` on Pushgateway is how often it fsyncs disk; it is not
+the scrape interval — do not set scrape to 15m to “match” it.
+xrdhover DELETEs its group on a clean exit; `condor_rm` / crash leaves the
+last PUT. Freshness drops those after 180s. Stat queries use
+`… or vector(0)` at each step and Grafana calc **last** (not lastNotNull):
+a range window would otherwise keep the last live rate for the whole
+dashboard interval. Throughput `spanNulls` is off so a dead series does not
+draw through to now.
 
 ## Import
 
