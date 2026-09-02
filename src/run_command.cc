@@ -3,6 +3,7 @@
 #include "xrdhover/build_info.hh"
 #include "xrdhover/error_classifier.hh"
 #include "xrdhover/file_session.hh"
+#include "xrdhover/chirp_sink.hh"
 #include "xrdhover/file_sink.hh"
 #include "xrdhover/inflight.hh"
 #include "xrdhover/log.hh"
@@ -90,6 +91,9 @@ void PrintDryRun(const RunConfig& cfg) {
     if (!cfg.pushgateway_url.empty()) {
         std::printf("push_job:       %s\n", cfg.pushgateway_job.c_str());
     }
+    std::printf("chirp_classads: %s\n", cfg.chirp_classads ? "on" : "off");
+    std::printf("chirp_prom:     %s\n",
+                cfg.chirp_prom_path.empty() ? "(disabled)" : cfg.chirp_prom_path.c_str());
     std::printf("site_map:       %s\n",
                 cfg.site_map_path.empty() ? "(none)" : cfg.site_map_path.c_str());
     std::printf("sitename_query: %s\n", cfg.sitename_query ? "on" : "off");
@@ -186,7 +190,21 @@ int RunEngine(const RunConfig& cfg) {
                          cfg.pushgateway_url.c_str(), cfg.pushgateway_job.c_str(),
                          cfg.run_id.c_str(), job_id.c_str());
     }
-    if (sink || push) {
+    std::unique_ptr<ChirpSink> chirp;
+    if (cfg.chirp_classads || !cfg.chirp_prom_path.empty()) {
+        chirp = std::make_unique<ChirpSink>(
+            cfg.chirp_binary, cfg.chirp_prom_path, cfg.chirp_classads,
+            cfg.run_id, job_id);
+        if (chirp->Available()) {
+            XRDHOVER_LOG_ERR("chirp: classads=%s prom=%s",
+                             cfg.chirp_classads ? "on" : "off",
+                             cfg.chirp_prom_path.empty() ? "(disabled)" : cfg.chirp_prom_path.c_str());
+        } else {
+            XRDHOVER_LOG_ERR("chirp: condor_chirp not found; chirp sink disabled");
+            chirp.reset();
+        }
+    }
+    if (sink || push || chirp) {
         registry.SampleProc();
         cpu_at_start = SampleProcess().cpu_seconds;
     }
@@ -209,7 +227,7 @@ int RunEngine(const RunConfig& cfg) {
         const auto now = Clock::now();
         registry.SetInflight(live.load(std::memory_order_relaxed));
         const double wall = std::chrono::duration<double>(now - t0).count();
-        if (sink || push) registry.SampleProc();
+        if (sink || push || chirp) registry.SampleProc();
         auto snap = registry.Snapshot(wall);
         if (sink) sink->WriteSnapshot(snap);
         if (push) {
@@ -217,6 +235,7 @@ int RunEngine(const RunConfig& cfg) {
                 XRDHOVER_LOG_ERR("warning: pushgateway push failed");
             }
         }
+        if (chirp) chirp->Push(snap);
     };
 
     // Dedicated timer so snapshots continue even if admission is blocked on the
@@ -411,7 +430,7 @@ int RunEngine(const RunConfig& cfg) {
     if (site_thread.joinable()) site_thread.join();
 
     const double elapsed = std::chrono::duration<double>(Clock::now() - t0).count();
-    if (sink || push) registry.SampleProc();
+    if (sink || push || chirp) registry.SampleProc();
     registry.SetInflight(live.load(std::memory_order_relaxed));
     fill_cms_sites();
     const MetricsSnapshot final_snap = registry.Snapshot(elapsed);
@@ -445,6 +464,9 @@ int RunEngine(const RunConfig& cfg) {
                              cfg.pushgateway_job.c_str(), cfg.run_id.c_str(), job_id.c_str());
         }
     }
+    if (chirp) {
+        chirp->Finish(final_snap);
+    }
 
     std::printf("=== run summary ===\n");
     std::printf("run_id:         %s\n", cfg.run_id.c_str());
@@ -462,6 +484,9 @@ int RunEngine(const RunConfig& cfg) {
     }
     if (sink) std::printf("results:        %s\n", sink->run_dir().c_str());
     if (push) std::printf("pushgateway:    %s\n", cfg.pushgateway_url.c_str());
+    if (chirp) std::printf("chirp:          classads=%s prom=%s\n",
+                           cfg.chirp_classads ? "on" : "off",
+                           cfg.chirp_prom_path.empty() ? "(disabled)" : cfg.chirp_prom_path.c_str());
     if (!final_snap.errors_by_class.empty()) {
         std::printf("errors:\n");
         for (const auto& e : final_snap.errors_by_class) {

@@ -46,6 +46,11 @@ struct RunConfig {
     std::string pushgateway_job = "xrdhover";
     bool pushgateway_keep = false;  // if true, skip DELETE on exit (debug / short smoke)
 
+    // Chirp — condor_chirp ClassAd updates + .prom file transfer.
+    bool chirp_classads = false;        // set_job_attr for control-loop scalars
+    std::string chirp_prom_path;        // remote dir on AP for .prom files (empty = disabled)
+    std::string chirp_binary;           // explicit path (empty = auto-discover)
+
     // Workload reproducibility (empty when launched via legacy CLI flags).
     int schema_version = 0;
     std::string auth_mode;               // e.g. "x509"

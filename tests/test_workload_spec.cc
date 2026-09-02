@@ -234,6 +234,8 @@ TEST(WorkloadSpec, ToRunConfigMapsFields) {
     EXPECT_EQ(cfg.pushgateway_url, r.resolved.sinks.pushgateway.url);
     EXPECT_EQ(cfg.pushgateway_job, r.resolved.sinks.pushgateway.job);
     EXPECT_EQ(cfg.pushgateway_keep, r.resolved.sinks.pushgateway.keep);
+    EXPECT_EQ(cfg.chirp_classads, r.resolved.sinks.chirp.classads);
+    EXPECT_EQ(cfg.chirp_prom_path, r.resolved.sinks.chirp.prom_path);
 }
 
 struct InvalidCase {

@@ -52,6 +52,11 @@ struct PushgatewaySpec {
     bool keep = false;
 };
 
+struct ChirpSpec {
+    bool classads = false;
+    std::string prom_path;    // remote dir on AP for .prom files (empty = disabled)
+};
+
 struct SinkSpec {
     std::string results_dir = "results";
     std::string snapshot_interval_input = "15s";
@@ -59,6 +64,7 @@ struct SinkSpec {
     std::string job_id;
     bool write_results = true;
     PushgatewaySpec pushgateway;
+    ChirpSpec chirp;
     std::string site_map;        // resolved path (empty = none)
     std::string site_map_input;  // original JSON string
 };

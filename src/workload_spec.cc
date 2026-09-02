@@ -194,7 +194,12 @@ json WorkloadToCanonicalJson(const WorkloadSpec& wl) {
     push["keep"] = wl.sinks.pushgateway.keep;
     push["url"] = wl.sinks.pushgateway.url;
 
+    json chirp = json::object();
+    chirp["classads"] = wl.sinks.chirp.classads;
+    chirp["prom_path"] = wl.sinks.chirp.prom_path;
+
     json sinks = json::object();
+    sinks["chirp"] = chirp;
     sinks["job_id"] = wl.sinks.job_id;
     sinks["pushgateway"] = push;
     sinks["results_dir"] = wl.sinks.results_dir;
@@ -333,7 +338,7 @@ ValidateResult ValidateWorkloadJson(const json& root, const std::string& workloa
             const json& sinks = root["sinks"];
             RejectUnknown(r, sinks,
                           {"results_dir", "snapshot_interval", "job_id", "write_results",
-                           "pushgateway", "site_map"},
+                           "pushgateway", "chirp", "site_map"},
                           "sinks");
             OptionalString(r, sinks, "results_dir", "sinks.results_dir", wl.sinks.results_dir);
             if (OptionalString(r, sinks, "snapshot_interval", "sinks.snapshot_interval",
@@ -371,6 +376,18 @@ ValidateResult ValidateWorkloadJson(const json& root, const std::string& workloa
                     OptionalString(r, pg, "url", "sinks.pushgateway.url", wl.sinks.pushgateway.url);
                     OptionalString(r, pg, "job", "sinks.pushgateway.job", wl.sinks.pushgateway.job);
                     OptionalBool(r, pg, "keep", "sinks.pushgateway.keep", wl.sinks.pushgateway.keep);
+                }
+            }
+            if (sinks.contains("chirp")) {
+                if (!sinks["chirp"].is_object()) {
+                    AddIssue(r, "sinks.chirp", "must be an object");
+                } else {
+                    const json& ch = sinks["chirp"];
+                    RejectUnknown(r, ch, {"classads", "prom_path"}, "sinks.chirp");
+                    OptionalBool(r, ch, "classads", "sinks.chirp.classads",
+                                 wl.sinks.chirp.classads);
+                    OptionalString(r, ch, "prom_path", "sinks.chirp.prom_path",
+                                   wl.sinks.chirp.prom_path);
                 }
             }
         }
@@ -573,6 +590,8 @@ RunConfig ToRunConfig(const WorkloadSpec& wl, const TargetSpec& target) {
     cfg.pushgateway_url = wl.sinks.pushgateway.url;
     cfg.pushgateway_job = wl.sinks.pushgateway.job;
     cfg.pushgateway_keep = wl.sinks.pushgateway.keep;
+    cfg.chirp_classads = wl.sinks.chirp.classads;
+    cfg.chirp_prom_path = wl.sinks.chirp.prom_path;
     cfg.site_map_path = wl.sinks.site_map;
     cfg.schema_version = wl.schema_version;
     cfg.auth_mode = wl.auth.mode;

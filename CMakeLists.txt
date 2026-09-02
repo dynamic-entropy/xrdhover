@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.24)
 # Default for local builds; release builds pass -DXRDHOVER_VERSION=<tag> so the
 # binary matches the GitHub release / tarball name.
 if(NOT DEFINED XRDHOVER_VERSION)
-  set(XRDHOVER_VERSION "0.2.1")
+  set(XRDHOVER_VERSION "0.4.0")
 endif()
 
 project(xrdhover
@@ -51,6 +51,7 @@ set(XRDHOVER_SOURCES
   src/file_sink.cc
   src/prom_encode.cc
   src/pushgateway_sink.cc
+  src/chirp_sink.cc
   src/soft_fault_log.cc
   src/workload_spec.cc
   src/auth_check.cc
