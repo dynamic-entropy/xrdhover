@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
+#include <spawn.h>
 #include <string>
 #include <string_view>
 #include <sys/wait.h>
@@ -29,8 +30,7 @@ constexpr int kChirpTimeoutS = 10;
 
 // Build an environ copy with PATH/PYTHONPATH/PYTHONHOME restored from
 // XRDHOVER_ORIG_* so the glidein's Python is used for condor_chirp.
-// Must be done BEFORE fork() — after fork in a multithreaded process
-// only async-signal-safe functions are allowed (no malloc/setenv).
+// Built once per thread and passed to posix_spawn's envp.
 struct ChirpEnv {
     std::vector<std::string> storage;
     std::vector<const char*> ptrs;
@@ -68,12 +68,16 @@ struct ChirpEnv {
     }
 };
 
-// Fork+exec condor_chirp with the given arguments.  Returns true on exit 0.
+// Spawn condor_chirp with the given arguments.  Returns true on exit 0.
 // Kills the child after kChirpTimeoutS seconds if it hasn't exited.
-// All heap allocation happens before fork(); the child only calls
-// async-signal-safe functions (open/dup2/close/execve/_exit).
-bool ForkExecChirp(const std::string& binary, const char* const argv[], int argc) {
-    // Build argv and environ before fork (heap allocation is safe here).
+//
+// Uses posix_spawn instead of fork+exec.  In a multithreaded process,
+// fork() calls pthread_atfork prepare handlers which try to acquire the
+// glibc malloc lock.  If any thread (e.g. XrdCl) is inside malloc() at
+// that moment, fork() deadlocks in the *parent* — the timeout code never
+// runs.  posix_spawn (glibc ≥ 2.24) uses clone(CLONE_VM|CLONE_VFORK)
+// and skips atfork handlers entirely.
+bool SpawnChirp(const std::string& binary, const char* const argv[], int argc) {
     std::vector<const char*> av;
     av.reserve(argc + 2);
     av.push_back(binary.c_str());
@@ -82,17 +86,21 @@ bool ForkExecChirp(const std::string& binary, const char* const argv[], int argc
 
     static thread_local ChirpEnv chirp_env;
 
-    const pid_t pid = fork();
-    if (pid < 0) {
-        XRDHOVER_LOG_ERR("chirp: fork failed: %s", std::strerror(errno));
+    // Redirect stdout and stderr to /dev/null in the child.
+    posix_spawn_file_actions_t actions;
+    posix_spawn_file_actions_init(&actions);
+    posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO, "/dev/null", O_WRONLY, 0);
+    posix_spawn_file_actions_adddup2(&actions, STDOUT_FILENO, STDERR_FILENO);
+
+    pid_t pid = -1;
+    int err = posix_spawn(&pid, binary.c_str(), &actions, nullptr,
+                          const_cast<char* const*>(av.data()),
+                          const_cast<char* const*>(chirp_env.ptrs.data()));
+    posix_spawn_file_actions_destroy(&actions);
+
+    if (err != 0) {
+        XRDHOVER_LOG_ERR("chirp: posix_spawn failed: %s", std::strerror(err));
         return false;
-    }
-    if (pid == 0) {
-        int devnull = open("/dev/null", O_WRONLY);
-        if (devnull >= 0) { dup2(devnull, 1); dup2(devnull, 2); close(devnull); }
-        execve(binary.c_str(), const_cast<char* const*>(av.data()),
-               const_cast<char* const*>(chirp_env.ptrs.data()));
-        _exit(127);
     }
 
     // Poll with timeout instead of blocking forever.
@@ -170,7 +178,7 @@ ChirpSink::ChirpSink(std::string chirp_binary, std::string prom_remote_dir,
 
 bool ChirpSink::RunChirp(const char* const argv[], int argc) const {
     if (chirp_binary_.empty()) return false;
-    return ForkExecChirp(chirp_binary_, argv, argc);
+    return SpawnChirp(chirp_binary_, argv, argc);
 }
 
 bool ChirpSink::SetAttr(const char* name, const std::string& value) const {
