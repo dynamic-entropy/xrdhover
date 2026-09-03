@@ -87,9 +87,14 @@ otherwise keeps old metric names until DELETE):
 DELETE https://xrdprom.cern.ch:2094/metrics/job/xrdhover
 ```
 
-Gauge panels only draw a group when `push_time_seconds` is younger than 180s.
-That window must be greater than `sinks.snapshot_interval` (60s on the N=4
-campaign) and greater than the Prometheus scrape interval (keep scrape at 15s).
+Gauge panels only draw a group that is **live**: `achieved_rate > 0` or
+`inflight > 0`. Alloy textfile leftovers from finished jobs keep
+`target_rate` at the old hold and `achieved_rate` at 0 — summing those
+makes Target look like N×job_rate (eight 200 Mbps files → 1.6 Gbps) while
+one job is actually holding 200 Mbps. Pushgateway `push_time_seconds` is
+not present on the chirp path; xrdhover also encodes
+`xrdhover_push_time_seconds` for later freshness joins. On clean exit
+chirp **removes** the `.prom` file (do not leave a zeroed target).
 `--persistence.interval` on Pushgateway is how often it fsyncs disk; it is not
 the scrape interval — do not set scrape to 15m to “match” it.
 xrdhover DELETEs its group on a clean exit; `condor_rm` / crash leaves the

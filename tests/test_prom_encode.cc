@@ -43,6 +43,7 @@ TEST(PromEncode, ContainsCoreSeriesAndHistogramBuckets) {
     EXPECT_NE(text.find("class=\"timeout\""), std::string::npos);
     EXPECT_NE(text.find("xrdhover_target_rate_bytes{"), std::string::npos);
     EXPECT_NE(text.find("xrdhover_achieved_rate_bytes{"), std::string::npos);
+    EXPECT_NE(text.find("xrdhover_push_time_seconds{"), std::string::npos);
     EXPECT_NE(text.find("xrdhover_inflight_reads{"), std::string::npos);
     EXPECT_NE(text.find("xrdhover_max_inflight{"), std::string::npos);
     EXPECT_NE(text.find("xrdhover_site_sessions_total{"), std::string::npos);

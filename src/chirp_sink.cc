@@ -272,21 +272,17 @@ void ChirpSink::Push(const MetricsSnapshot& snap) {
 void ChirpSink::Finish(const MetricsSnapshot& final_snap) {
     if (chirp_binary_.empty()) return;
 
-    // Push final snapshot.
     Push(final_snap);
 
-    // Zero rate/inflight gauges so dashboards don't hold the last value.
     if (classads_) {
         SetAttr("ChirpXrdhoverAchievedRate", 0.0);
         SetAttr("ChirpXrdhoverInflight", static_cast<uint32_t>(0));
+        SetAttr("ChirpXrdhoverTargetRate", 0.0);
     }
+    // Do not leave a zeroed .prom: Alloy keeps scraping it, so Target stays
+    // the job rate forever while Achieved is 0 (N dead dests → N×rate).
     if (!prom_remote_path_.empty()) {
-        MetricsSnapshot idle = final_snap;
-        idle.achieved_rate_bytes = 0.0;
-        idle.inflight_reads = 0;
-        idle.by_data_server.clear();
-        idle.by_cms_site.clear();
-        PutFile(prom_remote_path_, EncodePrometheusText(idle));
+        RemoveFile(prom_remote_path_);
     }
 }
 
