@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -33,15 +34,29 @@ bool ForkExecChirp(const std::string& binary, const char* const argv[], int argc
         return false;
     }
     if (pid == 0) {
-        if (freopen("/dev/null", "w", stdout) == nullptr ||
-            freopen("/dev/null", "w", stderr) == nullptr) {
-            _exit(126);
-        }
-        std::vector<const char*> av;
-        av.push_back(binary.c_str());
-        for (int i = 0; i < argc; ++i) av.push_back(argv[i]);
-        av.push_back(nullptr);
-        execv(binary.c_str(), const_cast<char* const*>(av.data()));
+        // CMS glidein condor_chirp is a Python script (htchirp).  CMSSW
+        // puts Python 3.12 on PATH, which removed inspect.getargspec and
+        // breaks htchirp.  Restore the pre-cmsenv PATH so the glidein's
+        // Python is found instead.
+        if (const char* orig = std::getenv("XRDHOVER_ORIG_PATH"); orig && *orig)
+            setenv("PATH", orig, 1);
+        if (const char* orig = std::getenv("XRDHOVER_ORIG_PYTHONPATH"); orig && *orig)
+            setenv("PYTHONPATH", orig, 1);
+        else
+            unsetenv("PYTHONPATH");
+        if (const char* orig = std::getenv("XRDHOVER_ORIG_PYTHONHOME"); orig && *orig)
+            setenv("PYTHONHOME", orig, 1);
+        else
+            unsetenv("PYTHONHOME");
+
+        int devnull = open("/dev/null", O_WRONLY);
+        if (devnull >= 0) { dup2(devnull, 1); dup2(devnull, 2); close(devnull); }
+
+        const char* av[argc + 2];
+        av[0] = binary.c_str();
+        for (int i = 0; i < argc; ++i) av[i + 1] = argv[i];
+        av[argc + 1] = nullptr;
+        execv(binary.c_str(), const_cast<char* const*>(av));
         _exit(127);
     }
 
