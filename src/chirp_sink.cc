@@ -15,8 +15,10 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <string_view>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <vector>
 
 namespace xrdhover {
 namespace {
@@ -25,38 +27,71 @@ namespace fs = std::filesystem;
 
 constexpr int kChirpTimeoutS = 10;
 
+// Build an environ copy with PATH/PYTHONPATH/PYTHONHOME restored from
+// XRDHOVER_ORIG_* so the glidein's Python is used for condor_chirp.
+// Must be done BEFORE fork() — after fork in a multithreaded process
+// only async-signal-safe functions are allowed (no malloc/setenv).
+struct ChirpEnv {
+    std::vector<std::string> storage;
+    std::vector<const char*> ptrs;
+
+    ChirpEnv() {
+        const char* orig_path = std::getenv("XRDHOVER_ORIG_PATH");
+        const char* orig_pypath = std::getenv("XRDHOVER_ORIG_PYTHONPATH");
+        const char* orig_pyhome = std::getenv("XRDHOVER_ORIG_PYTHONHOME");
+        bool has_path = false;
+        for (char** e = environ; e && *e; ++e) {
+            std::string_view entry(*e);
+            if (orig_path && *orig_path && entry.substr(0, 5) == "PATH=") {
+                storage.push_back(std::string("PATH=") + orig_path);
+                ptrs.push_back(storage.back().c_str());
+                has_path = true;
+            } else if (entry.substr(0, 11) == "PYTHONPATH=") {
+                if (orig_pypath && *orig_pypath) {
+                    storage.push_back(std::string("PYTHONPATH=") + orig_pypath);
+                    ptrs.push_back(storage.back().c_str());
+                }
+            } else if (entry.substr(0, 11) == "PYTHONHOME=") {
+                if (orig_pyhome && *orig_pyhome) {
+                    storage.push_back(std::string("PYTHONHOME=") + orig_pyhome);
+                    ptrs.push_back(storage.back().c_str());
+                }
+            } else {
+                ptrs.push_back(*e);
+            }
+        }
+        if (orig_path && *orig_path && !has_path) {
+            storage.push_back(std::string("PATH=") + orig_path);
+            ptrs.push_back(storage.back().c_str());
+        }
+        ptrs.push_back(nullptr);
+    }
+};
+
 // Fork+exec condor_chirp with the given arguments.  Returns true on exit 0.
 // Kills the child after kChirpTimeoutS seconds if it hasn't exited.
+// All heap allocation happens before fork(); the child only calls
+// async-signal-safe functions (open/dup2/close/execve/_exit).
 bool ForkExecChirp(const std::string& binary, const char* const argv[], int argc) {
+    // Build argv and environ before fork (heap allocation is safe here).
+    std::vector<const char*> av;
+    av.reserve(argc + 2);
+    av.push_back(binary.c_str());
+    for (int i = 0; i < argc; ++i) av.push_back(argv[i]);
+    av.push_back(nullptr);
+
+    static thread_local ChirpEnv chirp_env;
+
     const pid_t pid = fork();
     if (pid < 0) {
         XRDHOVER_LOG_ERR("chirp: fork failed: %s", std::strerror(errno));
         return false;
     }
     if (pid == 0) {
-        // CMS glidein condor_chirp is a Python script (htchirp).  CMSSW
-        // puts Python 3.12 on PATH, which removed inspect.getargspec and
-        // breaks htchirp.  Restore the pre-cmsenv PATH so the glidein's
-        // Python is found instead.
-        if (const char* orig = std::getenv("XRDHOVER_ORIG_PATH"); orig && *orig)
-            setenv("PATH", orig, 1);
-        if (const char* orig = std::getenv("XRDHOVER_ORIG_PYTHONPATH"); orig && *orig)
-            setenv("PYTHONPATH", orig, 1);
-        else
-            unsetenv("PYTHONPATH");
-        if (const char* orig = std::getenv("XRDHOVER_ORIG_PYTHONHOME"); orig && *orig)
-            setenv("PYTHONHOME", orig, 1);
-        else
-            unsetenv("PYTHONHOME");
-
         int devnull = open("/dev/null", O_WRONLY);
         if (devnull >= 0) { dup2(devnull, 1); dup2(devnull, 2); close(devnull); }
-
-        const char* av[argc + 2];
-        av[0] = binary.c_str();
-        for (int i = 0; i < argc; ++i) av[i + 1] = argv[i];
-        av[argc + 1] = nullptr;
-        execv(binary.c_str(), const_cast<char* const*>(av));
+        execve(binary.c_str(), const_cast<char* const*>(av.data()),
+               const_cast<char* const*>(chirp_env.ptrs.data()));
         _exit(127);
     }
 
