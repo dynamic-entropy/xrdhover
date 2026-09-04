@@ -177,7 +177,7 @@ std::string EncodePrometheusText(const MetricsSnapshot& snap) {
                    snap.process_resident_memory_bytes);
     AppendGauge(o, "xrdhover_wall_seconds", "Elapsed wall time of the run so far", L, snap.wall_s);
     AppendGauge(o, "xrdhover_push_time_seconds",
-                "Unix time this snapshot was encoded (drop the group if older than 180s)", L,
+                "Unix time this snapshot was encoded (drop the group if older than 300s)", L,
                 static_cast<double>(std::time(nullptr)));
 
     if (!snap.by_cms_site.empty()) {

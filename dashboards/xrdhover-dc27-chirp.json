@@ -1,0 +1,1265 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "xrdhover DC27 chirp path (job=integrations/unix): Alloy textfile collector via condor_chirp put. Gauges are last_over_time(...[5m]) so a missed scrape does not drop a live job from the sum. Freshness is last_over_time(xrdhover_push_time_seconds[5m]) < 300s joined on (job, src_dst, job_id).",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Pushgateway",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/xrdhover-dc27-pushgateway"
+    }
+  ],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 100,
+      "title": "Throughput",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Per-link achieved (stacked) vs one dashed Target = sum of live job token-buckets (not per-link 200 Mbps). Query C Achieved = sum of Query A. Live jobs with 0 bytes still count in Target and show as a 0 stack slice. Gauges are last_over_time[5m] so a missed scrape does not drop one job from the sum.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "bit/s",
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 55,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "stack1",
+              "mode": "normal"
+            }
+          },
+          "unit": "bps"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "custom.stacking",
+                "value": {
+                  "group": "total",
+                  "mode": "none"
+                }
+              },
+              {
+                "id": "custom.drawStyle",
+                "value": "line"
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "custom.stacking",
+                "value": {
+                  "group": "target",
+                  "mode": "none"
+                }
+              },
+              {
+                "id": "custom.drawStyle",
+                "value": "line"
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    8,
+                    4
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Achieved"
+            },
+            "properties": [
+              {
+                "id": "custom.stacking",
+                "value": {
+                  "group": "total",
+                  "mode": "none"
+                }
+              },
+              {
+                "id": "custom.drawStyle",
+                "value": "line"
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 16,
+        "x": 0,
+        "y": 1
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "last"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc",
+          "maxHeight": 400
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(sum by (source, dest, src_dst) (last_over_time(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))) * 8",
+          "legendFormat": "{{src_dst}}",
+          "refId": "A",
+          "editorMode": "code",
+          "exemplar": false,
+          "instant": false,
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "label_replace((sum(last_over_time(xrdhover_target_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))) * 8, \"line\", \"Target\", \"\", \"\") or label_replace(vector(0), \"line\", \"Target\", \"\", \"\")",
+          "legendFormat": "{{line}}",
+          "refId": "B",
+          "editorMode": "code",
+          "exemplar": false,
+          "instant": false,
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "label_replace((sum(last_over_time(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))) * 8, \"line\", \"Achieved\", \"\", \"\") or label_replace(vector(0), \"line\", \"Achieved\", \"\", \"\")",
+          "legendFormat": "{{line}}",
+          "refId": "C",
+          "editorMode": "code",
+          "exemplar": false,
+          "instant": false,
+          "range": true
+        }
+      ],
+      "title": "Achieved throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "sum(achieved) of jobs with a chirp snapshot in the last 300s. Idle / after exit \u2192 0 (or vector(0) at each step). lastNotNull over the dashboard window would keep the last live rate.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1048576
+              },
+              {
+                "color": "green",
+                "value": 10485760
+              }
+            ]
+          },
+          "unit": "bps",
+          "noValue": "0"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "label_replace((sum(last_over_time(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300)) * 8), \"line\", \"Achieved\", \"\", \"\") or label_replace(vector(0), \"line\", \"Achieved\", \"\", \"\")",
+          "refId": "A",
+          "editorMode": "code",
+          "exemplar": false,
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{line}}"
+        }
+      ],
+      "title": "Achieved rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "sum(target) of jobs with a chirp snapshot in the last 300s. After the last push ages out (or .prom removed on exit) this is 0, not the last hold.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "orange",
+                "value": null
+              }
+            ]
+          },
+          "unit": "bps",
+          "noValue": "0"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "label_replace((sum(last_over_time(xrdhover_target_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300)) * 8), \"line\", \"Target\", \"\", \"\") or label_replace(vector(0), \"line\", \"Target\", \"\", \"\")",
+          "refId": "A",
+          "editorMode": "code",
+          "exemplar": false,
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{line}}"
+        }
+      ],
+      "title": "Target rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "ok/(ok+fail) session rate, only for groups that chirped in the last 300s. No live jobs \u2192 0. Stale Alloy .prom leftover is not a lingering 100%.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.9
+              },
+              {
+                "color": "green",
+                "value": 0.99
+              }
+            ]
+          },
+          "unit": "percentunit",
+          "noValue": "0"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 16,
+        "y": 5
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "label_replace((sum(rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\", result=\"ok\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300)) / clamp_min(sum(rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300)), 1e-9)), \"line\", \"Success\", \"\", \"\") or label_replace(vector(0), \"line\", \"Success\", \"\", \"\")",
+          "refId": "A",
+          "editorMode": "code",
+          "exemplar": false,
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{line}}"
+        }
+      ],
+      "title": "Session success rate",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 10
+      },
+      "id": 101,
+      "title": "Concurrency & errors",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Live in-flight FileSessions vs configured max_inflight. Legend last and max over the selected window.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "sessions",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 11
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [
+            "last",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (source, dest, src_dst) (last_over_time(xrdhover_inflight_reads{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))",
+          "legendFormat": "inflight {{src_dst}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (source, dest, src_dst) (last_over_time(xrdhover_max_inflight{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))",
+          "legendFormat": "max_inflight {{src_dst}}",
+          "refId": "B"
+        }
+      ],
+      "title": "In-flight vs max_inflight",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Hard failures: sessions that ended ok=false (classifier class).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "errors/s",
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 1,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "showPoints": "never"
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 11
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (source, dest, src_dst, class) (rate(xrdhover_errors_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]))",
+          "legendFormat": "{{src_dst}} {{class}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Hard errors (failed sessions)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Soft faults: XrdCl Error-level log lines (connection reset, etc.) even when the session later succeeds.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "faults/s",
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 1,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "showPoints": "never"
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (source, dest, src_dst, kind) (rate(xrdhover_soft_faults_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]))",
+          "legendFormat": "{{src_dst}} {{kind}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Soft faults (XrdCl Error logs)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "id": 102,
+      "title": "Latency & efficiency",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Open: Open submit \u2192 Open complete. TTFB: first Read submit \u2192 first byte (not Open\u2192first byte; token-queue wait is excluded).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "seconds",
+            "drawStyle": "line",
+            "fillOpacity": 5,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "scaleDistribution": {
+              "type": "log",
+              "log": 10
+            }
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 28
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "last"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.50, sum by (le, source, dest, src_dst) (rate(xrdhover_open_seconds_bucket{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])))",
+          "legendFormat": "{{src_dst}} open p50",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, source, dest, src_dst) (rate(xrdhover_open_seconds_bucket{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])))",
+          "legendFormat": "{{src_dst}} open p95",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.50, sum by (le, source, dest, src_dst) (rate(xrdhover_ttfb_seconds_bucket{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])))",
+          "legendFormat": "{{src_dst}} ttfb p50",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, source, dest, src_dst) (rate(xrdhover_ttfb_seconds_bucket{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])))",
+          "legendFormat": "{{src_dst}} ttfb p95",
+          "refId": "D"
+        }
+      ],
+      "title": "Open / TTFB latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Per-Read issue-to-complete latency (application RTT; includes chunk serialization, excludes token-queue wait). Avg is histogram sum/count; p50/p95 from buckets.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "seconds",
+            "drawStyle": "line",
+            "fillOpacity": 5,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "scaleDistribution": {
+              "type": "log",
+              "log": 10
+            }
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 28
+      },
+      "id": 22,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "last"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (source, dest, src_dst) (rate(xrdhover_read_op_seconds_sum{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])) / clamp_min(sum by (source, dest, src_dst) (rate(xrdhover_read_op_seconds_count{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])), 1e-9)",
+          "legendFormat": "{{src_dst}} RTT avg",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.50, sum by (le, source, dest, src_dst) (rate(xrdhover_read_op_seconds_bucket{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])))",
+          "legendFormat": "{{src_dst}} RTT p50",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, source, dest, src_dst) (rate(xrdhover_read_op_seconds_bucket{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])))",
+          "legendFormat": "{{src_dst}} RTT p95",
+          "refId": "C"
+        }
+      ],
+      "title": "Read-op RTT",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Arch efficiency: bytes read per CPU-second (NOT a network rate). Unit is SI bytes (e.g. 303 MB = 303e6 B per CPU-s). Do not compare to the Mbps/Gbps throughput panels.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "B/CPU-s",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "unit": "decbytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 28
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "last"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (source, dest, src_dst) (rate(xrdhover_bytes_read_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])) / clamp_min(sum by (source, dest, src_dst) (rate(xrdhover_cpu_seconds_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m])), 1e-9)",
+          "legendFormat": "{{src_dst}} bytes / CPU-sec",
+          "refId": "A"
+        }
+      ],
+      "title": "Bytes per CPU-second",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Process RSS while generating load.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 36
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [
+            "last",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (source, dest, src_dst) (last_over_time(xrdhover_process_resident_memory_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))",
+          "legendFormat": "RSS {{src_dst}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Client RSS",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 42
+      },
+      "id": 103,
+      "title": "Link attribution",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Where the link's bytes landed (CMS sitename). bits/s = Prom bytes/wall \u00d7 8. Stack \u2248 the link total. cms_site=unmapped means sitename was missing.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "bit/s",
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            }
+          },
+          "unit": "bps"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "last"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Last *",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(sum by (cms_site, source, dest, src_dst) (last_over_time(xrdhover_site_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))) * 8",
+          "legendFormat": "{{src_dst}} {{cms_site}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Achieved rate by CMS site",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Completed FileSessions (Open\u2192\u2026\u2192Close) per second on the link \u2014 not live inflight, not TCP connections. rate() over 2m.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "sessions/s",
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 51
+      },
+      "id": 13,
+      "options": {
+        "legend": {
+          "calcs": [
+            "last",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (result, source, dest, src_dst) (rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))",
+          "legendFormat": "{{src_dst}} {{result}}",
+          "refId": "A"
+        }
+      ],
+      "title": "FileSessions rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Same FileSessions rate split by CMS sitename (where the redirector sent the Open). cms_site=unmapped when sitename is missing.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "sessions/s",
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 51
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": [
+            "last",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (cms_site, result, source, dest, src_dst) (rate(xrdhover_site_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))",
+          "legendFormat": "{{src_dst}} {{cms_site}} {{result}}",
+          "refId": "A"
+        }
+      ],
+      "title": "FileSessions rate by CMS site",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": [
+    "xrdhover",
+    "cms",
+    "xrootd",
+    "dc"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "type": "datasource"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "integrations/unix",
+          "value": "integrations/unix"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(xrdhover_bytes_read_total{job=\"integrations/unix\"}, job)",
+        "includeAll": false,
+        "label": "job",
+        "name": "job",
+        "query": {
+          "query": "label_values(xrdhover_bytes_read_total{job=\"integrations/unix\"}, job)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "regex": "^integrations/unix$",
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(xrdhover_bytes_read_total{job=~\"$job\"}, source)",
+        "includeAll": true,
+        "label": "source",
+        "multi": true,
+        "name": "source",
+        "query": {
+          "query": "label_values(xrdhover_bytes_read_total{job=~\"$job\"}, source)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(xrdhover_bytes_read_total{job=~\"$job\", source=~\"$source\"}, dest)",
+        "includeAll": true,
+        "label": "dest",
+        "multi": true,
+        "name": "dest",
+        "query": {
+          "query": "label_values(xrdhover_bytes_read_total{job=~\"$job\", source=~\"$source\"}, dest)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(xrdhover_bytes_read_total{job=~\"$job\", source=~\"$source\", dest=~\"$dest\"}, src_dst)",
+        "includeAll": true,
+        "label": "src_dst",
+        "multi": true,
+        "name": "src_dst",
+        "query": {
+          "query": "label_values(xrdhover_bytes_read_total{job=~\"$job\", source=~\"$source\", dest=~\"$dest\"}, src_dst)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "xrdhover / DC27 Chirp",
+  "uid": "xrdhover-dc27-chirp",
+  "version": 1,
+  "weekStart": ""
+}

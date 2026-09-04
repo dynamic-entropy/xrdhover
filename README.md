@@ -112,8 +112,10 @@ See [include/xrdhover/push_group.hh](include/xrdhover/push_group.hh).
 The process DELETEs its Pushgateway group on exit unless
 `sinks.pushgateway.keep` is true.
 
-Import [dashboards/xrdhover-d1.json](dashboards/xrdhover-d1.json) into Grafana.
-See [dashboards/README.md](dashboards/README.md).
+Import [dashboards/xrdhover-dc27-pushgateway.json](dashboards/xrdhover-dc27-pushgateway.json) (Pushgateway,
+`job=xrdhover`) and [dashboards/xrdhover-dc27-chirp.json](dashboards/xrdhover-dc27-chirp.json)
+(Alloy chirp, `job=integrations/unix`) into Grafana. Do not mix the two paths
+on one dashboard. See [dashboards/README.md](dashboards/README.md).
 
 ## Build / test / release
 

@@ -23,12 +23,20 @@ namespace xrdhover {
 //   key. Without replica, Grafana Target rate is one job_rate (R/N), not the
 //   cell total R. That is how a 10 Gbps hold can show ~5 Gb/s.
 //
-// Grafana D1 rules (do not "simplify" these away):
-//   freshness:  and on (job, src_dst, replica)
-//               so a live sibling does not keep a condor_rm leftover
+// Grafana DC27 rules (do not "simplify" these away):
+//   Both dashboards (job pinned per file: xrdhover vs integrations/unix):
+//     gauges:     last_over_time(<gauge>[5m])  (not the instant selector)
+//     freshness:  and on (job, src_dst, job_id)
+//                 (time() - last_over_time(xrdhover_push_time_seconds[5m])) < 300
+//     Do not join on replica / Pushgateway push_time_seconds — gauges are
+//     labeled job_id. replica stays on the PUT URL only (uniqueness).
+//     last_over_time on the gauge keeps a live job in the sum across a
+//     missed scrape; freshness last_over_time covers steps before the next
+//     scrape. 300s is past chirp-stretch + skew. Instant gauges + and
+//     drop one job_rate from Target/Achieved for a single Grafana step.
 //   display:    sum by (source, dest, src_dst)   [plus the panel key]
 //               so N replicas collapse to one SOURCE__DEST series
-//   variables:  job, source, dest, src_dst only
+//   variables:  job (pinned per dashboard), source, dest, src_dst only
 //   legends:    {{src_dst}} (plus class / cms_site / …)
 //
 // Wipe groups that pre-date replica, then wait one scrape:
