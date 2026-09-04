@@ -16,7 +16,6 @@
 #include <fstream>
 #include <spawn.h>
 #include <string>
-#include <string_view>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
@@ -27,46 +26,6 @@ namespace {
 namespace fs = std::filesystem;
 
 constexpr int kChirpTimeoutS = 10;
-
-// Build an environ copy with PATH/PYTHONPATH/PYTHONHOME restored from
-// XRDHOVER_ORIG_* so the glidein's Python is used for condor_chirp.
-// Built once per thread and passed to posix_spawn's envp.
-struct ChirpEnv {
-    std::vector<std::string> storage;
-    std::vector<const char*> ptrs;
-
-    ChirpEnv() {
-        const char* orig_path = std::getenv("XRDHOVER_ORIG_PATH");
-        const char* orig_pypath = std::getenv("XRDHOVER_ORIG_PYTHONPATH");
-        const char* orig_pyhome = std::getenv("XRDHOVER_ORIG_PYTHONHOME");
-        bool has_path = false;
-        for (char** e = environ; e && *e; ++e) {
-            std::string_view entry(*e);
-            if (orig_path && *orig_path && entry.substr(0, 5) == "PATH=") {
-                storage.push_back(std::string("PATH=") + orig_path);
-                ptrs.push_back(storage.back().c_str());
-                has_path = true;
-            } else if (entry.substr(0, 11) == "PYTHONPATH=") {
-                if (orig_pypath && *orig_pypath) {
-                    storage.push_back(std::string("PYTHONPATH=") + orig_pypath);
-                    ptrs.push_back(storage.back().c_str());
-                }
-            } else if (entry.substr(0, 11) == "PYTHONHOME=") {
-                if (orig_pyhome && *orig_pyhome) {
-                    storage.push_back(std::string("PYTHONHOME=") + orig_pyhome);
-                    ptrs.push_back(storage.back().c_str());
-                }
-            } else {
-                ptrs.push_back(*e);
-            }
-        }
-        if (orig_path && *orig_path && !has_path) {
-            storage.push_back(std::string("PATH=") + orig_path);
-            ptrs.push_back(storage.back().c_str());
-        }
-        ptrs.push_back(nullptr);
-    }
-};
 
 // Spawn condor_chirp with the given arguments.  Returns true on exit 0.
 // Kills the child after kChirpTimeoutS seconds if it hasn't exited.
@@ -84,8 +43,8 @@ bool SpawnChirp(const std::string& binary, const char* const argv[], int argc) {
     for (int i = 0; i < argc; ++i) av.push_back(argv[i]);
     av.push_back(nullptr);
 
-    static thread_local ChirpEnv chirp_env;
-
+    // Inherit the process env. run_xrdhover.sh applies CMSSW LD_LIBRARY_PATH
+    // only, so PATH/Python stay the glidein's (htchirp needs inspect.getargspec).
     // Redirect stdout and stderr to /dev/null in the child.
     posix_spawn_file_actions_t actions;
     posix_spawn_file_actions_init(&actions);
@@ -94,8 +53,7 @@ bool SpawnChirp(const std::string& binary, const char* const argv[], int argc) {
 
     pid_t pid = -1;
     int err = posix_spawn(&pid, binary.c_str(), &actions, nullptr,
-                          const_cast<char* const*>(av.data()),
-                          const_cast<char* const*>(chirp_env.ptrs.data()));
+                          const_cast<char* const*>(av.data()), environ);
     posix_spawn_file_actions_destroy(&actions);
 
     if (err != 0) {

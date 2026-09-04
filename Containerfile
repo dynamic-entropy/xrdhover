@@ -6,7 +6,7 @@
 #   ALMA_VERSION=10 → newer host; do not ship to rhel9 glideins
 #
 # XRootD 6 from xrootd.cern.ch (soname libXrdCl.so.6). On the grid, tckestrel
-# cmsenv's CMSSW_20_1_0_pre2 (el9, cmsdist xrootd 6.0.2) for that library.
+# takes LD_LIBRARY_PATH from CMSSW_20_1_0_pre2 (el9, cmsdist xrootd 6.0.2).
 ARG ALMA_VERSION=9
 FROM --platform=linux/amd64 almalinux:${ALMA_VERSION}
 

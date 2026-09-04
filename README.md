@@ -15,7 +15,7 @@ monitoring (MONIT) can identify it.
 From [GitHub Releases](https://github.com/dynamic-entropy/xrdhover/releases).
 The `linux-amd64` tarball is an **AlmaLinux 9** build (glibc 2.34, OpenSSL 3).
 That is the CMS Connect / tckestrel WN (`+REQUIRED_OS=rhel9`). Requires
-`xrootd-client` 6 (`libXrdCl.so.6`) on the host, or CMSSW cmsenv on the grid.
+`xrootd-client` 6 (`libXrdCl.so.6`) on the host, or CMSSW `LD_LIBRARY_PATH` on the grid.
 
 ```sh
 curl -fsSL https://github.com/dynamic-entropy/xrdhover/releases/latest/download/install.sh | sudo bash
@@ -36,7 +36,7 @@ xrdhover version
 |---|---|
 | Glidein | `+REQUIRED_OS=rhel9` (el9) |
 | Binary | `linux-amd64` = AlmaLinux 9 + XRootD 6. Do not ship an el10 build. |
-| `libXrdCl.so.6` | `run_xrdhover.sh` cmsenv of `CMSSW_20_1_0_pre2` (`el9_*`, cmsdist 6.0.2) |
+| `libXrdCl.so.6` | `run_xrdhover.sh` takes `LD_LIBRARY_PATH` from scram runtime of `CMSSW_20_1_0_pre2` (`el9_*`, cmsdist 6.0.2) |
 
 CMS glideins do not ship XrdCl. Do not use CVMFS for the **executable**. Do not
 cmsenv a 15.x–20.0 release (XRootD 5) or an el8 `SCRAM_ARCH` on an el9 WN
