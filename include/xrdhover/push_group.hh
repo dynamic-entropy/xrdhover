@@ -25,15 +25,15 @@ namespace xrdhover {
 //
 // Grafana DC27 rules (do not "simplify" these away):
 //   Both dashboards (job pinned per file: xrdhover vs integrations/unix):
-//     gauges:     last_over_time(<gauge>[5m])  (not the instant selector)
+//     gauges:     last_over_time(<gauge>[2m])  (not the instant selector)
 //     freshness:  and on (job, src_dst, job_id)
-//                 (time() - last_over_time(xrdhover_push_time_seconds[5m])) < 300
+//                 (time() - last_over_time(xrdhover_push_time_seconds[2m])) < 120
 //     Do not join on replica / Pushgateway push_time_seconds — gauges are
 //     labeled job_id. replica stays on the PUT URL only (uniqueness).
 //     last_over_time on the gauge keeps a live job in the sum across a
-//     missed scrape; freshness last_over_time covers steps before the next
-//     scrape. 300s is past chirp-stretch + skew. Instant gauges + and
-//     drop one job_rate from Target/Achieved for a single Grafana step.
+//     missed scrape. 120s covers chirp 30s + scrape holes. 5m/300s held
+//     one-shot series until they overlapped replenish (Target bump).
+//     Instant gauges + and drop one job_rate for a single Grafana step.
 //   display:    sum by (source, dest, src_dst)   [plus the panel key]
 //               so N replicas collapse to one SOURCE__DEST series
 //   variables:  job (pinned per dashboard), source, dest, src_dst only

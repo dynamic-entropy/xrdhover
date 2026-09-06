@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "xrdhover DC27 Pushgateway path (job=xrdhover): achieved throughput by source\u2013dest, errors, inflight, latency, plus CMS-site attribution. Gauges are last_over_time(...[5m]) so a missed scrape does not drop a live job from the sum. Freshness is last_over_time(xrdhover_push_time_seconds[5m]) < 300s joined on (job, src_dst, job_id). replica is Pushgateway uniqueness only, not the join key.",
+  "description": "xrdhover DC27 Pushgateway path (job=xrdhover): achieved throughput by source\u2013dest, errors, inflight, latency, plus CMS-site attribution. Gauges are last_over_time(...[2m]) so a missed scrape does not drop a live job from the sum. Freshness is last_over_time(xrdhover_push_time_seconds[2m]) < 120s joined on (job, src_dst, job_id). 120s covers scrape holes without holding one-shot series for 5m (Target overlap bump). replica is Pushgateway uniqueness only, not the join key.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -212,7 +212,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum by (source, dest, src_dst) (last_over_time(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))) * 8",
+          "expr": "(sum by (source, dest, src_dst) (last_over_time(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[2m])) < 120))) * 8",
           "legendFormat": "{{src_dst}}",
           "refId": "A",
           "editorMode": "code",
@@ -225,7 +225,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "label_replace((sum(last_over_time(xrdhover_target_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))) * 8, \"line\", \"Target\", \"\", \"\") or label_replace(vector(0), \"line\", \"Target\", \"\", \"\")",
+          "expr": "label_replace((sum(last_over_time(xrdhover_target_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[2m])) < 120))) * 8, \"line\", \"Target\", \"\", \"\") or label_replace(vector(0), \"line\", \"Target\", \"\", \"\")",
           "legendFormat": "{{line}}",
           "refId": "B",
           "editorMode": "code",
@@ -238,7 +238,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "label_replace((sum(last_over_time(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))) * 8, \"line\", \"Achieved\", \"\", \"\") or label_replace(vector(0), \"line\", \"Achieved\", \"\", \"\")",
+          "expr": "label_replace((sum(last_over_time(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[2m])) < 120))) * 8, \"line\", \"Achieved\", \"\", \"\") or label_replace(vector(0), \"line\", \"Achieved\", \"\", \"\")",
           "legendFormat": "{{line}}",
           "refId": "C",
           "editorMode": "code",
@@ -307,7 +307,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "label_replace((sum(last_over_time(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300)) * 8), \"line\", \"Achieved\", \"\", \"\") or label_replace(vector(0), \"line\", \"Achieved\", \"\", \"\")",
+          "expr": "label_replace((sum(last_over_time(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[2m])) < 120)) * 8), \"line\", \"Achieved\", \"\", \"\") or label_replace(vector(0), \"line\", \"Achieved\", \"\", \"\")",
           "refId": "A",
           "editorMode": "code",
           "exemplar": false,
@@ -367,7 +367,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "label_replace((sum(last_over_time(xrdhover_target_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300)) * 8), \"line\", \"Target\", \"\", \"\") or label_replace(vector(0), \"line\", \"Target\", \"\", \"\")",
+          "expr": "label_replace((sum(last_over_time(xrdhover_target_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[2m])) < 120)) * 8), \"line\", \"Target\", \"\", \"\") or label_replace(vector(0), \"line\", \"Target\", \"\", \"\")",
           "refId": "A",
           "editorMode": "code",
           "exemplar": false,
@@ -437,7 +437,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "label_replace((sum(rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\", result=\"ok\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300)) / clamp_min(sum(rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300)), 1e-9)), \"line\", \"Success\", \"\", \"\") or label_replace(vector(0), \"line\", \"Success\", \"\", \"\")",
+          "expr": "label_replace((sum(rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\", result=\"ok\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[2m])) < 120)) / clamp_min(sum(rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[2m])) < 120)), 1e-9)), \"line\", \"Success\", \"\", \"\") or label_replace(vector(0), \"line\", \"Success\", \"\", \"\")",
           "refId": "A",
           "editorMode": "code",
           "exemplar": false,
@@ -510,7 +510,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (source, dest, src_dst) (last_over_time(xrdhover_inflight_reads{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))",
+          "expr": "sum by (source, dest, src_dst) (last_over_time(xrdhover_inflight_reads{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[2m])) < 120))",
           "legendFormat": "inflight {{src_dst}}",
           "refId": "A"
         },
@@ -519,7 +519,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (source, dest, src_dst) (last_over_time(xrdhover_max_inflight{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))",
+          "expr": "sum by (source, dest, src_dst) (last_over_time(xrdhover_max_inflight{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[2m])) < 120))",
           "legendFormat": "max_inflight {{src_dst}}",
           "refId": "B"
         }
@@ -931,7 +931,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (source, dest, src_dst) (last_over_time(xrdhover_process_resident_memory_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))",
+          "expr": "sum by (source, dest, src_dst) (last_over_time(xrdhover_process_resident_memory_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[2m])) < 120))",
           "legendFormat": "RSS {{src_dst}}",
           "refId": "A"
         }
@@ -1007,7 +1007,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum by (cms_site, source, dest, src_dst) (last_over_time(xrdhover_site_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[5m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))) * 8",
+          "expr": "(sum by (cms_site, source, dest, src_dst) (last_over_time(xrdhover_site_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[2m])) < 120))) * 8",
           "legendFormat": "{{src_dst}} {{cms_site}}",
           "refId": "A"
         }
@@ -1065,7 +1065,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (result, source, dest, src_dst) (rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))",
+          "expr": "sum by (result, source, dest, src_dst) (rate(xrdhover_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[2m])) < 120))",
           "legendFormat": "{{src_dst}} {{result}}",
           "refId": "A"
         }
@@ -1123,7 +1123,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (cms_site, result, source, dest, src_dst) (rate(xrdhover_site_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[5m])) < 300))",
+          "expr": "sum by (cms_site, result, source, dest, src_dst) (rate(xrdhover_site_sessions_total{job=~\"$job\", src_dst=~\"$src_dst\", source=~\"$source\", dest=~\"$dest\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}[2m])) < 120))",
           "legendFormat": "{{src_dst}} {{cms_site}} {{result}}",
           "refId": "A"
         }

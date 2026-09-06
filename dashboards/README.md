@@ -6,7 +6,9 @@ Importable JSON for ops Grafana (xrdmon / CMS). The observability stack is
 | File | Story |
 |---|---|
 | [`xrdhover-dc27-pushgateway.json`](xrdhover-dc27-pushgateway.json) | **Pushgateway** (`job=xrdhover`): achieved throughput by source–dest (with target overlay), success rate, inflight vs max, hard/soft errors, open/TTFB, Read-op RTT, bytes/CPU-sec, CMS-site attribution, FileSessions **rate** |
-| [`xrdhover-dc27-chirp.json`](xrdhover-dc27-chirp.json) | **Chirp / Alloy** (`job=integrations/unix`): same panels. Freshness is `last_over_time(xrdhover_push_time_seconds[5m]) < 300` joined on `job_id` |
+| [`xrdhover-dc27-chirp.json`](xrdhover-dc27-chirp.json) | **Chirp / Alloy** (`job=integrations/unix`): same panels except Client RSS (slot memory is the tckestrel Condor dashboard). Freshness is `last_over_time(xrdhover_push_time_seconds[2m]) < 120` joined on `job_id` |
+
+tckestrel campaign ClassAds: [`tckestrel/dashboards/tckestrel-dc27.json`](../../tckestrel/dashboards/tckestrel-dc27.json) (`tckestrel_*`; same Alloy `job` as chirp).
 
 **Hard vs soft:** `xrdhover_errors_total` = failed sessions;
 `xrdhover_soft_faults_total` = XrdCl Error log lines (e.g. connection reset)
@@ -77,8 +79,8 @@ so those N PUTs do not clobber each other. Without it, Target rate is one
 
 | PromQL | Pushgateway (`xrdhover-dc27-pushgateway.json`) | Chirp (`xrdhover-dc27-chirp.json`) |
 |---|---|---|
-| gauges | `last_over_time(xrdhover_*[5m])` then freshness `and` | same |
-| freshness | `and on (job, src_dst, job_id)` `(time() - last_over_time(xrdhover_push_time_seconds[5m])) < 300` | same |
+| gauges | `last_over_time(xrdhover_*[2m])` then freshness `and` | same |
+| freshness | `and on (job, src_dst, job_id)` `(time() - last_over_time(xrdhover_push_time_seconds[2m])) < 120` | same |
 | display | `sum by (source, dest, src_dst)` | same |
 | `job` variable | pinned `xrdhover` | pinned `integrations/unix` |
 | uniqueness label | Pushgateway grouping `replica` (PUT URL only; not the join key) | metric label `job_id` (not a Grafana dimension) |
@@ -93,8 +95,8 @@ DELETE https://xrdprom.cern.ch:2094/metrics/job/xrdhover
 ```
 
 Gauge panels only draw a group that is **fresh**: encode time
-(`xrdhover_push_time_seconds`) younger than **300s**. Both the gauge and
-the push timestamp use `last_over_time(...[5m])`. Freshness on
+(`xrdhover_push_time_seconds`) younger than **120s**. Both the gauge and
+the push timestamp use `last_over_time(...[2m])`. Freshness on
 `push_time` alone is not enough — an instant gauge selector still drops
 that job from the `sum` when one scrape is missed (Target 600→500 Mbps
 for a single 15s step). `or vector(0)` is only the all-jobs-idle floor;
@@ -102,14 +104,15 @@ it is not those one-job dips. After the last snapshot ages out (or
 `.prom` removed / PUT DELETE), series go to 0.
 Do **not** join on Pushgateway `push_time_seconds` / `replica` — the
 gauges are labeled `job_id`; that join is empty even when PUTs are live.
-300s is past `sinks.snapshot_interval` (15s Pushgateway-only, **30s**
-when chirp is set), chirp-stretch on the shared timer thread, and scrape
-(keep scrape at 15s). On clean exit chirp **removes** the `.prom` file
+120s is past `sinks.snapshot_interval` (15s Pushgateway-only, **30s**
+when chirp is set) plus a missed scrape. A 5m/300s window kept one-shot
+series in Target until they overlapped late starters (3.77→3.98→3.78 Gbps).
+On clean exit chirp **removes** the `.prom` file
 (do not leave a zeroed target).
 `--persistence.interval` on Pushgateway is how often it fsyncs disk; it is not
 the scrape interval — do not set scrape to 15m to “match” it.
 xrdhover DELETEs its Pushgateway group on a clean exit; `condor_rm` / crash leaves the
-last PUT. Freshness drops those after 300s. Stat queries use
+last PUT. Freshness drops those after 120s. Stat queries use
 `… or vector(0)` at each step and Grafana calc **last** (not lastNotNull):
 a range window would otherwise keep the last live rate for the whole
 dashboard interval. Throughput `spanNulls` is off so a dead series does not
