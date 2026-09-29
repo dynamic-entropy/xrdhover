@@ -15,7 +15,9 @@ enum class ErrorClass {
     NotFound,
     ClientError,
     RedirectLoop,
-    Trust,  // CA / certificate verification failures
+    Trust,       // CA / certificate verification failures
+    Expired,     // XrdCl errOperationExpired (206): "Operation expired"
+    NoReplicas,  // XrdCl errNoMoreReplicas (16): nothing left to try
     Unknown,
 };
 

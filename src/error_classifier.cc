@@ -33,6 +33,10 @@ const char* ErrorClassName(ErrorClass c) {
             return "redirect_loop";
         case ErrorClass::Trust:
             return "trust";
+        case ErrorClass::Expired:
+            return "expired";
+        case ErrorClass::NoReplicas:
+            return "no_replicas";
         case ErrorClass::Unknown:
             return "unknown";
     }
@@ -40,7 +44,6 @@ const char* ErrorClassName(ErrorClass c) {
 }
 
 ErrorClass ClassifyXRootDError(int status_code, int err_code, const std::string& message) {
-    (void)status_code;
     const std::string msg = Lower(message);
 
     // Auth
@@ -62,9 +65,15 @@ ErrorClass ClassifyXRootDError(int status_code, int err_code, const std::string&
         return ErrorClass::RedirectLoop;
     }
 
+    // XrdCl says "Operation expired" (errOperationExpired = 206). That is a
+    // client-side wait expiry, not the word "timeout", and errNo is often 0.
+    if (status_code == 206 || msg.find("operation expired") != std::string::npos) {
+        return ErrorClass::Expired;
+    }
+
     // Timeouts
-    if (msg.find("timeout") != std::string::npos || msg.find("timed out") != std::string::npos ||
-        err_code == 110 /* ETIMEDOUT */) {
+    if (status_code == 103 || msg.find("timeout") != std::string::npos ||
+        msg.find("timed out") != std::string::npos || err_code == 110 /* ETIMEDOUT */) {
         return ErrorClass::Timeout;
     }
 
@@ -98,6 +107,41 @@ ErrorClass ClassifyXRootDError(int status_code, int err_code, const std::string&
 
     if (msg.find("server") != std::string::npos || msg.find("srverr") != std::string::npos) {
         return ErrorClass::ServerError;
+    }
+
+    // status_code is XrdCl::Status::code. The message heuristics above miss
+    // several of these when errNo is 0.
+    switch (status_code) {
+        case 16:  // errNoMoreReplicas
+            return ErrorClass::NoReplicas;
+        case 101:  // errInvalidAddr
+        case 102:  // errSocketError
+        case 104:  // errSocketDisconnected
+        case 105:  // errPollerError
+        case 106:  // errSocketOptError
+        case 107:  // errStreamDisconnect
+        case 108:  // errConnectionError
+        case 109:  // errInvalidSession
+        case 110:  // errTlsError
+        case 202:  // errHandShakeFailed
+            return ErrorClass::Connection;
+        case 203:  // errLoginFailed
+        case 204:  // errAuthFailed
+            return ErrorClass::Auth;
+        case 304:  // errNotFound
+            return ErrorClass::NotFound;
+        case 306:  // errRedirectLimit
+            return ErrorClass::RedirectLoop;
+        case 303:  // errInvalidResponse
+        case 307:  // errCorruptedHeader
+        case 400:  // errErrorResponse
+            return ErrorClass::ServerError;
+        default:
+            break;
+    }
+    if (msg.find("no more replicas") != std::string::npos ||
+        msg.find("no servers are available") != std::string::npos) {
+        return ErrorClass::NoReplicas;
     }
 
     if (!msg.empty() || err_code != 0 || status_code != 0) return ErrorClass::Unknown;

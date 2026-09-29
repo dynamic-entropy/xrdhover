@@ -39,6 +39,19 @@ TEST(ErrorClassifier, Trust) {
     EXPECT_STREQ(ErrorClassName(ErrorClass::Trust), "trust");
 }
 
+TEST(ErrorClassifier, ExpiredIsNotUnknown) {
+    EXPECT_EQ(ClassifyXRootDError(206, 0, ""), ErrorClass::Expired);
+    EXPECT_EQ(ClassifyXRootDError(206, 0, "[ERROR] Operation expired"), ErrorClass::Expired);
+    EXPECT_EQ(ClassifyXRootDError(0, 0, "open failed: [ERROR] Operation expired"), ErrorClass::Expired);
+    EXPECT_STREQ(ErrorClassName(ErrorClass::Expired), "expired");
+}
+
+TEST(ErrorClassifier, NoReplicas) {
+    EXPECT_EQ(ClassifyXRootDError(16, 0, ""), ErrorClass::NoReplicas);
+    EXPECT_EQ(ClassifyXRootDError(0, 0, "No more replicas to try"), ErrorClass::NoReplicas);
+    EXPECT_STREQ(ErrorClassName(ErrorClass::NoReplicas), "no_replicas");
+}
+
 TEST(ErrorClassifier, Names) {
     EXPECT_STREQ(ErrorClassName(ErrorClass::Auth), "auth");
     EXPECT_STREQ(ErrorClassName(ErrorClass::None), "none");
