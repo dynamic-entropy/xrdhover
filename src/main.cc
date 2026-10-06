@@ -3,6 +3,7 @@
 #include <XrdVersion.hh>
 
 #include <cstdio>
+#include <cstdlib>
 #include <stdexcept>
 #include <string>
 
@@ -40,7 +41,14 @@ bool AnyCounted(const std::vector<CLI::Option*>& opts) {
 }  // namespace
 
 int main(int argc, char** argv) {
-    XrdCl::DefaultEnv::GetEnv()->PutString("AppName", std::string("xrdhover/") + XRDHOVER_VERSION);
+    // XrdCl copies XRD_APPNAME into login CGI xrd.appname when the env is first
+    // touched. Only fill AppName here when that variable is unset, so a wrapper
+    // can set it from outside.
+    const char* app_env = std::getenv("XRD_APPNAME");
+    if (app_env == nullptr || app_env[0] == '\0') {
+        XrdCl::DefaultEnv::GetEnv()->PutString("AppName",
+                                               std::string("xrdhover/") + XRDHOVER_VERSION);
+    }
 
     CLI::App app{"xrdhover — XRootD remote-read traffic generator"};
     app.require_subcommand(1);

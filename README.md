@@ -8,7 +8,8 @@ one process per Condor job, token-bucket capped, metrics on a Pushgateway.
 tckestrel owns Condor, Rucio, filelists, and the outer fleet loop.
 
 All traffic is tagged `XRD_APPNAME=xrdhover/<version>` so server-side
-monitoring (MONIT) can identify it.
+monitoring (MONIT) can identify it. If `XRD_APPNAME` is already set, that
+value is sent instead.
 
 ## Install (linux/amd64)
 
