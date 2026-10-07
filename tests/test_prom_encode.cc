@@ -32,6 +32,7 @@ TEST(PromEncode, ContainsCoreSeriesAndHistogramBuckets) {
     EXPECT_NE(text.find("xrdhover_bytes_read_total{"), std::string::npos);
     EXPECT_NE(text.find("src_dst=\"run-a\""), std::string::npos);
     EXPECT_NE(text.find("job_id=\"host1\""), std::string::npos);
+    EXPECT_NE(text.find("host=\""), std::string::npos);
     EXPECT_NE(text.find("xrdhover_sessions_total{"), std::string::npos);
     EXPECT_NE(text.find("result=\"ok\""), std::string::npos);
     EXPECT_NE(text.find("result=\"fail\""), std::string::npos);
@@ -48,6 +49,15 @@ TEST(PromEncode, ContainsCoreSeriesAndHistogramBuckets) {
     EXPECT_NE(text.find("xrdhover_max_inflight{"), std::string::npos);
     EXPECT_NE(text.find("xrdhover_site_sessions_total{"), std::string::npos);
     EXPECT_NE(text.find("cms_site=\"unmapped\""), std::string::npos);
+}
+
+TEST(PromEncode, HostLabel) {
+    MetricsRegistry reg;
+    reg.SetLabels("run-a", "job-1", "default", "root://localhost/");
+    reg.SetHost("wn42.fnal.gov");
+    const std::string text = EncodePrometheusText(reg.Snapshot(1.0));
+    EXPECT_NE(text.find("host=\"wn42.fnal.gov\""), std::string::npos);
+    EXPECT_NE(text.find("xrdhover_achieved_rate_bytes{"), std::string::npos);
 }
 
 TEST(PromEncode, SourceDestFromRunId) {

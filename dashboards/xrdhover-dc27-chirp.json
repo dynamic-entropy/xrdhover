@@ -40,6 +40,18 @@
       "keepTime": true,
       "tags": [],
       "targetBlank": false,
+      "title": "Per job",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/xrdhover-dc27-chirp-per-job"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
       "title": "tckestrel Condor",
       "tooltip": "",
       "type": "link",

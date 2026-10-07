@@ -67,6 +67,7 @@ struct SiteStats {
 struct MetricsSnapshot {
     std::string run_id;
     std::string job_id;
+    std::string host;  // gethostname() of the worker; "unknown" if unset
     std::string target;
     std::string endpoint;
     double wall_s = 0.0;
@@ -124,6 +125,8 @@ ProcessSample SampleProcess();
 class MetricsRegistry {
 public:
     void SetLabels(std::string run_id, std::string job_id, std::string target, std::string endpoint);
+    // Worker hostname stamped on every Prometheus series. Empty → gethostname().
+    void SetHost(std::string host);
     void SetConfigGauges(uint64_t target_rate_bytes_per_s, uint32_t max_inflight);
 
     // Optional CMS site map for clean hostname→site attribution. Not owned.
@@ -160,6 +163,7 @@ private:
 
     std::string run_id_;
     std::string job_id_;
+    std::string host_;
     std::string target_;
     std::string endpoint_;
     const SiteMap* site_map_ = nullptr;

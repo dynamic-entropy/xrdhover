@@ -1,0 +1,274 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "One series per xrdhover process on the chirp path (job=integrations/unix). job_id is SOURCE__DEST__proc. host is the worker gethostname(). The fleet dashboard sums these away. Freshness is the same 120s push_time join.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "icon": "dashboard",
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "Chirp fleet",
+      "type": "link",
+      "url": "/d/xrdhover-dc27-chirp"
+    }
+  ],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "bit/s",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "unit": "bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 0},
+      "id": 1,
+      "options": {
+        "legend": {"calcs": ["last", "max"], "displayMode": "table", "placement": "right", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "editorMode": "code",
+          "expr": "(last_over_time(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", host=~\"$host\", job_id=~\"$job_id\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\", host=~\"$host\", job_id=~\"$job_id\"}[2m])) < 120)) * 8",
+          "legendFormat": "{{job_id}} {{host}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Achieved rate per job",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "bit/s",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "unit": "bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 9},
+      "id": 5,
+      "options": {
+        "legend": {"calcs": ["last", "max"], "displayMode": "table", "placement": "right", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "editorMode": "code",
+          "expr": "(sum by (host) (last_over_time(xrdhover_achieved_rate_bytes{job=~\"$job\", src_dst=~\"$src_dst\", host=~\"$host\", job_id=~\"$job_id\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\", host=~\"$host\", job_id=~\"$job_id\"}[2m])) < 120))) * 8",
+          "legendFormat": "{{host}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Achieved rate per worker",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "showPoints": "never"},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 17},
+      "id": 2,
+      "options": {
+        "legend": {"calcs": ["last", "max"], "displayMode": "table", "placement": "right", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "editorMode": "code",
+          "expr": "last_over_time(xrdhover_inflight_reads{job=~\"$job\", src_dst=~\"$src_dst\", host=~\"$host\", job_id=~\"$job_id\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\", host=~\"$host\", job_id=~\"$job_id\"}[2m])) < 120)",
+          "legendFormat": "{{job_id}} {{host}}",
+          "refId": "A"
+        }
+      ],
+      "title": "In-flight reads per job",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "showPoints": "never"},
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 17},
+      "id": 3,
+      "options": {
+        "legend": {"calcs": ["last"], "displayMode": "table", "placement": "right", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "editorMode": "code",
+          "expr": "last_over_time(xrdhover_bytes_read_total{job=~\"$job\", src_dst=~\"$src_dst\", host=~\"$host\", job_id=~\"$job_id\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\", host=~\"$host\", job_id=~\"$job_id\"}[2m])) < 120)",
+          "legendFormat": "{{job_id}} {{host}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Bytes read per job",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"drawStyle": "line", "fillOpacity": 0, "lineWidth": 1, "showPoints": "never"},
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 25},
+      "id": 4,
+      "options": {
+        "legend": {"calcs": ["last"], "displayMode": "table", "placement": "right", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.5, sum by (job_id, host, le) (rate(xrdhover_read_op_seconds_bucket{job=~\"$job\", src_dst=~\"$src_dst\", host=~\"$host\", job_id=~\"$job_id\"}[2m]) and on (job, src_dst, job_id) ((time() - last_over_time(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\", host=~\"$host\", job_id=~\"$job_id\"}[2m])) < 120)))",
+          "legendFormat": "{{job_id}} {{host}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Read-op latency p50 per job",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["xrdhover", "chirp", "per-job"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "type": "datasource"
+      },
+      {
+        "current": {"selected": true, "text": "integrations/unix", "value": "integrations/unix"},
+        "datasource": {"type": "prometheus", "uid": "${datasource}"},
+        "definition": "label_values(xrdhover_push_time_seconds, job)",
+        "includeAll": false,
+        "label": "job",
+        "name": "job",
+        "query": {
+          "query": "label_values(xrdhover_push_time_seconds, job)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "regex": "^integrations/unix$",
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {"selected": true, "text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "${datasource}"},
+        "definition": "label_values(xrdhover_push_time_seconds{job=~\"$job\"}, src_dst)",
+        "includeAll": true,
+        "label": "src_dst",
+        "multi": true,
+        "name": "src_dst",
+        "query": {
+          "query": "label_values(xrdhover_push_time_seconds{job=~\"$job\"}, src_dst)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {"selected": true, "text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "${datasource}"},
+        "definition": "label_values(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}, host)",
+        "includeAll": true,
+        "label": "host",
+        "multi": true,
+        "name": "host",
+        "query": {
+          "query": "label_values(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\"}, host)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {"selected": true, "text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "${datasource}"},
+        "definition": "label_values(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\", host=~\"$host\"}, job_id)",
+        "includeAll": true,
+        "label": "job_id",
+        "multi": true,
+        "name": "job_id",
+        "query": {
+          "query": "label_values(xrdhover_push_time_seconds{job=~\"$job\", src_dst=~\"$src_dst\", host=~\"$host\"}, job_id)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {"from": "now-30m", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "xrdhover / DC27 Chirp per job",
+  "uid": "xrdhover-dc27-chirp-per-job",
+  "version": 2
+}

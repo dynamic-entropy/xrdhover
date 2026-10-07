@@ -42,6 +42,7 @@ std::string CommonLabels(const MetricsSnapshot& s) {
     std::ostringstream o;
     o << "src_dst=\"" << EscapeLabel(s.run_id) << "\","
       << "job_id=\"" << EscapeLabel(s.job_id) << "\","
+      << "host=\"" << EscapeLabel(s.host.empty() ? "unknown" : s.host) << "\","
       << "target=\"" << EscapeLabel(s.target) << "\","
       << "endpoint=\"" << EscapeLabel(s.endpoint) << "\"";
     AppendSourceDest(o, s.run_id);

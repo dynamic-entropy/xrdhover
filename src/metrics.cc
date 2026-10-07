@@ -9,6 +9,14 @@
 namespace xrdhover {
 namespace {
 
+std::string LocalHostname() {
+    char buf[256];
+    if (gethostname(buf, sizeof(buf)) != 0) return "unknown";
+    buf[sizeof(buf) - 1] = '\0';
+    if (buf[0] == '\0') return "unknown";
+    return std::string(buf);
+}
+
 size_t BucketIndex(double value) {
     for (size_t i = 0; i < kLatencyBucketBounds.size(); ++i) {
         if (value <= kLatencyBucketBounds[i]) return i;
@@ -108,6 +116,11 @@ void MetricsRegistry::SetLabels(std::string run_id, std::string job_id, std::str
     job_id_ = std::move(job_id);
     target_ = std::move(target);
     endpoint_ = std::move(endpoint);
+    if (host_.empty()) host_ = LocalHostname();
+}
+
+void MetricsRegistry::SetHost(std::string host) {
+    host_ = host.empty() ? LocalHostname() : std::move(host);
 }
 
 void MetricsRegistry::SetConfigGauges(uint64_t target_rate_bytes_per_s, uint32_t max_inflight) {
@@ -212,6 +225,7 @@ MetricsSnapshot MetricsRegistry::Snapshot(double wall_s) {
     MetricsSnapshot s;
     s.run_id = run_id_;
     s.job_id = job_id_;
+    s.host = host_.empty() ? LocalHostname() : host_;
     s.target = target_;
     s.endpoint = endpoint_;
     s.wall_s = wall_s;

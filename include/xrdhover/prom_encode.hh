@@ -16,8 +16,9 @@ namespace xrdhover {
 //             site_achieved_rate. Unmapped disks use cms_site="unmapped".
 // Disk hosts stay in result.json.
 //
-// Common labels: src_dst (workload run_id / SOURCE__DEST), job_id, target,
-// endpoint, source, dest. Pushgateway grouping is src_dst + replica (job_id).
+// Common labels: src_dst (workload run_id / SOURCE__DEST), job_id, host
+// (worker gethostname), target, endpoint, source, dest.
+// Pushgateway grouping is src_dst + replica (job_id).
 // replica is uniqueness only — see push_group.hh. Not a Grafana dimension.
 // Histograms use cumulative _bucket{le="..."} + _sum + _count.
 // Every metric name is prefixed with xrdhover_ (Prometheus application namespace).

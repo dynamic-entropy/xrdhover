@@ -7,6 +7,7 @@ Importable JSON for ops Grafana (xrdmon / CMS). The observability stack is
 |---|---|
 | [`xrdhover-dc27-pushgateway.json`](xrdhover-dc27-pushgateway.json) | **Pushgateway** (`job=xrdhover`): achieved throughput by source–dest (with target overlay), success rate, inflight vs max, hard/soft errors, open/TTFB, Read-op RTT, bytes/CPU-sec, CMS-site attribution, FileSessions **rate** |
 | [`xrdhover-dc27-chirp.json`](xrdhover-dc27-chirp.json) | **Chirp / Alloy** (`job=integrations/unix`): same panels except Client RSS (slot memory is the tckestrel Condor dashboard). Freshness is `last_over_time(xrdhover_push_time_seconds[2m]) < 120` joined on `job_id` |
+| [`xrdhover-dc27-chirp-per-job.json`](xrdhover-dc27-chirp-per-job.json) | **Chirp, one series per job** (`job_id` = `SOURCE__DEST__proc`, `host` = worker `gethostname()`). Rate per job and per host, inflight, bytes, read-op p50. The fleet board sums these away. |
 
 tckestrel campaign ClassAds: [`tckestrel/dashboards/tckestrel-dc27.json`](../../tckestrel/dashboards/tckestrel-dc27.json) (`tckestrel_*`; same Alloy `job` as chirp).
 
